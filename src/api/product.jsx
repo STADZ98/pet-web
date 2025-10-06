@@ -86,5 +86,5 @@ export const listProductBy = async (token, sort, order, limit) => {
 };
 
 export const listProductByBrand = async (brandName) => {
-  return axios.get(`/api/products?brand=${encodeURIComponent(brandName)}`);
+  return axios.get(`${API}/products?brand=${encodeURIComponent(brandName)}`);
 };

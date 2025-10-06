@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const API = import.meta.env.VITE_API || "https://server-api-newgenz.vercel.app/api";
+const API =
+  import.meta.env.VITE_API || "https://server-api-newgenz.vercel.app/api";
 
 export const getOrdersAdmin = async (token) => {
   return axios.get(`${API}/admin/orders`, {

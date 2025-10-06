@@ -5,8 +5,7 @@ import { listCategory } from "../api/category";
 import { listProductBy, searchFilters } from "../api/product";
 import { listBrand } from "../api/brand";
 
-const API =
-  import.meta.env.VITE_API || "https://server-api-newgenz.vercel.app/api";
+const API = import.meta.env.VITE_API || "https://server-api-newgen.vercel.app/api";
 
 // 🎯 initial state
 const initialState = {
@@ -94,27 +93,17 @@ const ecomStore = (set, get) => ({
   },
 
   // -------------------- PRODUCT & FILTER --------------------
-  // Flexible getProduct: callers sometimes call getProduct(), getProduct(token),
-  // or getProduct(token, limit). Normalize arguments and call listProductBy(sort/order/limit).
   getProduct: async (...args) => {
     try {
-      // Default params
-      let token = null;
+      let token = get().token || null; // ใช้ token จาก store ถ้าไม่มี
       let sort = "createdAt";
       let order = "desc";
       let limit = 50;
 
-      // Handle common call patterns:
-      // getProduct() => no args
-      // getProduct(token) => token provided
-      // getProduct(token, limit) => token and limit
-      // getProduct(sort, order, limit) => legacy usage in some places
       if (args.length === 1) {
-        // single arg could be token (string) or limit (number)
         if (typeof args[0] === "string") token = args[0];
         else if (typeof args[0] === "number") limit = args[0];
       } else if (args.length === 2) {
-        // (token, limit) or (sort, order)
         if (typeof args[0] === "string" && typeof args[1] === "number") {
           token = args[0];
           limit = args[1];
@@ -123,16 +112,15 @@ const ecomStore = (set, get) => ({
           order = args[1];
         }
       } else if (args.length >= 3) {
-        // (sort, order, limit)
         sort = args[0] ?? sort;
         order = args[1] ?? order;
         limit = args[2] ?? limit;
       }
 
       const res = await listProductBy(token, sort, order, limit);
-      set({ products: res.data });
+      set({ products: res.data || [] });
     } catch (err) {
-      console.error("Error fetching products:", err);
+      console.error("getProduct error:", err.response?.data || err.message);
       set({ products: [] });
     }
   },
@@ -146,7 +134,7 @@ const ecomStore = (set, get) => ({
       };
       set({ filters });
       const res = await searchFilters(filters);
-      set({ products: res.data });
+      set({ products: res.data || [] });
     } catch (err) {
       console.error("Error applying filters:", err);
     }
@@ -308,7 +296,7 @@ const usePersist = {
       images: item.images,
     })),
     filters: state.filters,
-  }),
+  })
 };
 
 const useEcomStore = create(persist(ecomStore, usePersist));
