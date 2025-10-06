@@ -71,7 +71,7 @@ export const searchFilters = async (arg) => {
   return axios.post(`${API}/search/filters`, arg);
 };
 
-export const listProductBy = async (sort, order, limit, token = null) => {
+export const listProductBy = async (token, sort, order, limit) => {
   return axios.post(
     `${API}/productby`,
     { sort, order, limit },
@@ -86,5 +86,5 @@ export const listProductBy = async (sort, order, limit, token = null) => {
 };
 
 export const listProductByBrand = async (brandName) => {
-  return axios.get(`${API}/products?brand=${encodeURIComponent(brandName)}`);
+  return axios.get(`/api/products?brand=${encodeURIComponent(brandName)}`);
 };
