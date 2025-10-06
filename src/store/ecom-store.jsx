@@ -8,6 +8,29 @@ import { listBrand } from "../api/brand";
 const API =
   import.meta.env.VITE_API || "https://server-api-newgenz.vercel.app/api";
 
+// Cache duration in milliseconds
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+// Cache implementation
+const cache = {
+  data: new Map(),
+  get: (key) => {
+    const item = cache.data.get(key);
+    if (!item) return null;
+    if (Date.now() - item.timestamp > CACHE_DURATION) {
+      cache.data.delete(key);
+      return null;
+    }
+    return item.value;
+  },
+  set: (key, value) => {
+    cache.data.set(key, {
+      value,
+      timestamp: Date.now(),
+    });
+  },
+};
+
 // 🎯 initial state
 const initialState = {
   user: null,
