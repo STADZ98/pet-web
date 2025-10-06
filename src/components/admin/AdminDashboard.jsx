@@ -86,10 +86,7 @@ const AdminDashboard = () => {
     totalUsers: 0,
   });
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null); // State for Order Detail Modal
-  const [retryAttempts, setRetryAttempts] = useState(0);
-  const MAX_RETRY_ATTEMPTS = 3;
   const [selectedProduct, setSelectedProduct] = useState(null); // State for Product Detail Modal
   const [dailySales, setDailySales] = useState([]);
   const [paymentStats, setPaymentStats] = useState({
@@ -108,9 +105,6 @@ const AdminDashboard = () => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-
-  // Add retry mechanism
-  // Removed unused retry variables
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [_showToast, setShowToast] = useState(false);
   const prevOrdersCount = useRef(0);
@@ -124,25 +118,24 @@ const AdminDashboard = () => {
 
     const fetchData = async () => {
       setLoading(true);
-      setError(null);
-
-      // Create AbortController for cleanup
-      const controller = new AbortController();
-
       try {
-        // Split data fetching into critical and non-critical data
-        // Fetch critical data first
-        const criticalData = await Promise.all([
-          getOrdersAdmin(token, controller.signal),
-          getSalesSummary(token, controller.signal),
-        ]).catch((error) => {
-          console.error("Error fetching critical data:", error);
-          throw error;
-        });
+        const [ordersRes, summaryRes, paymentStatsRes] = await Promise.all([
+          getOrdersAdmin(token),
+          getSalesSummary(token),
+          // call payment stats; swallow error if endpoint missing
+          (async () => {
+            try {
+              const r = await import("../../api/admin").then((m) =>
+                m.getPaymentMethodStats(token)
+              );
+              return r;
+            } catch {
+              return { data: { ok: false, stats: null } };
+            }
+          })(),
+        ]);
 
-        const [ordersRes, summaryRes] = criticalData;
-
-        // Set critical data immediately
+        // API returns { page, perPage, orders: [...] } — normalize to an array
         const ordersArray = Array.isArray(ordersRes.data)
           ? ordersRes.data
           : Array.isArray(ordersRes.data?.orders)
@@ -150,31 +143,19 @@ const AdminDashboard = () => {
           : [];
 
         setOrders(ordersArray);
+        // Initialize filteredOrders so Recent Orders table shows results before filters applied
         setFilteredOrders(ordersArray);
         setSummary(
           summaryRes.data || { totalSales: 0, totalOrders: 0, totalUsers: 0 }
         );
 
-        // Reduce loading state after critical data is loaded
-        setLoading(false);
-
-        // Fetch non-critical data afterwards
-        try {
-          const paymentStatsRes = await import("../../api/admin").then((m) =>
-            m.getPaymentMethodStats(token, controller.signal)
-          );
-          if (paymentStatsRes?.data?.stats) {
-            setPaymentStats(paymentStatsRes.data.stats);
-          }
-        } catch (error) {
-          console.warn("Non-critical data fetch failed:", error);
-          // Don't throw error for non-critical data
-          return { data: { ok: false, stats: null } };
+        if (
+          paymentStatsRes &&
+          paymentStatsRes.data &&
+          paymentStatsRes.data.ok
+        ) {
+          setPaymentStats(paymentStatsRes.data.stats || {});
         }
-
-        // Orders already set from critical data fetch
-
-        // Payment stats are handled in the try-catch block above
 
         // --- Daily Sales Calculation ---
         const salesByDay = {};

@@ -15,14 +15,14 @@ export const getOrdersAdmin = async (token, signal) => {
     return response;
   } catch (error) {
     if (axios.isCancel(error)) {
-      throw new Error("Request cancelled");
+      throw new Error('Request cancelled');
     }
     if (error.response) {
       // Server responded with error
-      throw new Error(error.response.data.message || "Failed to fetch orders");
+      throw new Error(error.response.data.message || 'Failed to fetch orders');
     }
-    if (error.code === "ECONNABORTED") {
-      throw new Error("Request timed out");
+    if (error.code === 'ECONNABORTED') {
+      throw new Error('Request timed out');
     }
     throw error;
   }
@@ -77,30 +77,12 @@ export const changeUserRole = async (token, value) => {
     },
   });
 };
-export const getSalesSummary = async (token, signal) => {
-  try {
-    const response = await axios.get(`${API}/admin/sales-summary`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      signal,
-      timeout: 10000,
-    });
-    return response;
-  } catch (error) {
-    if (axios.isCancel(error)) {
-      throw new Error("Request cancelled");
-    }
-    if (error.response) {
-      throw new Error(
-        error.response.data.message || "Failed to fetch sales summary"
-      );
-    }
-    if (error.code === "ECONNABORTED") {
-      throw new Error("Request timed out");
-    }
-    throw error;
-  }
+export const getSalesSummary = async (token) => {
+  return axios.get(`${API}/admin/sales-summary`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
 };
 export const getTopProducts = async (token) => {
   return axios.get(`${API}/admin/top-products`, {
