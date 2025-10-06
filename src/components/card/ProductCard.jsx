@@ -8,7 +8,7 @@ import { numberFormat } from "../../utils/number";
 import PropTypes from "prop-types";
 import { createPortal } from "react-dom";
 
-const FALLBACK_IMAGE = "/no-image.png";
+const FALLBACK_IMAGE = "https://server-api-newgenz.vercel.app/no-image.png";
 
 // QuickView Modal
 const QuickViewModal = ({ item, onClose, onAddToCart }) => {

@@ -129,7 +129,7 @@ const ecomStore = (set, get) => ({
         limit = args[2] ?? limit;
       }
 
-      const res = await listProductBy(token, sort, order, limit);
+      const res = await listProductBy(sort, order, limit, token);
       set({ products: res.data });
     } catch (err) {
       console.error("Error fetching products:", err);
