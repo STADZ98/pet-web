@@ -8,7 +8,7 @@ import { numberFormat } from "../../utils/number";
 import PropTypes from "prop-types";
 import { createPortal } from "react-dom";
 
-const FALLBACK_IMAGE = "https://via.placeholder.com/300x300?text=No+Image";
+const FALLBACK_IMAGE = "/no-image.png";
 
 // QuickView Modal
 const QuickViewModal = ({ item, onClose, onAddToCart }) => {
