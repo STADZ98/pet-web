@@ -88,6 +88,8 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null); // State for Order Detail Modal
+  const [retryAttempts, setRetryAttempts] = useState(0);
+  const MAX_RETRY_ATTEMPTS = 3;
   const [selectedProduct, setSelectedProduct] = useState(null); // State for Product Detail Modal
   const [dailySales, setDailySales] = useState([]);
   const [paymentStats, setPaymentStats] = useState({
@@ -108,8 +110,7 @@ const AdminDashboard = () => {
   const [statusFilter, setStatusFilter] = useState("");
 
   // Add retry mechanism
-  const [retryCount, setRetryCount] = useState(0);
-  const maxRetries = 3;
+  // Removed unused retry variables
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [_showToast, setShowToast] = useState(false);
   const prevOrdersCount = useRef(0);
@@ -171,27 +172,9 @@ const AdminDashboard = () => {
           return { data: { ok: false, stats: null } };
         }
 
-        // API returns { page, perPage, orders: [...] } — normalize to an array
-        const ordersArray = Array.isArray(ordersRes.data)
-          ? ordersRes.data
-          : Array.isArray(ordersRes.data?.orders)
-          ? ordersRes.data.orders
-          : [];
+        // Orders already set from critical data fetch
 
-        setOrders(ordersArray);
-        // Initialize filteredOrders so Recent Orders table shows results before filters applied
-        setFilteredOrders(ordersArray);
-        setSummary(
-          summaryRes.data || { totalSales: 0, totalOrders: 0, totalUsers: 0 }
-        );
-
-        if (
-          paymentStatsRes &&
-          paymentStatsRes.data &&
-          paymentStatsRes.data.ok
-        ) {
-          setPaymentStats(paymentStatsRes.data.stats || {});
-        }
+        // Payment stats are handled in the try-catch block above
 
         // --- Daily Sales Calculation ---
         const salesByDay = {};
