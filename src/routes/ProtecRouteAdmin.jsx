@@ -5,16 +5,30 @@ import LoadingToRedirect from "./LoadingToRedirect";
 
 const ProtectRouteAdmin = ({ element }) => {
   const [ok, setOk] = useState(false);
+  const [loading, setLoading] = useState(true);
   const user = useEcomStore((state) => state.user);
   const token = useEcomStore((state) => state.token);
 
   useEffect(() => {
     if (user && token) {
       currentAdmin(token)
-        .then((res) => setOk(true))
-        .catch((err) => setOk(false));
+        .then(() => setOk(true))
+        .catch(() => setOk(false))
+        .finally(() => setLoading(false));
+    } else {
+      setLoading(false);
     }
-  }, []);
+  }, [user, token]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen text-lg font-medium">
+        Checking permissions...
+      </div>
+    );
+  }
+
   return ok ? element : <LoadingToRedirect />;
 };
-export default ProtectRouteAdmin
+
+export default ProtectRouteAdmin;

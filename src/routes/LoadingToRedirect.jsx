@@ -7,23 +7,35 @@ const LoadingToRedirect = () => {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setCount((currentCount) => {
-        if (currentCount === 1) {
+      setCount((c) => {
+        if (c <= 0.5) {
           clearInterval(interval);
           setRedirect(true);
+          return 0;
         }
-        return currentCount - 1;
+        return parseFloat((c - 0.5).toFixed(1));
       });
-    }, 1000);
+    }, 500); // ลดทีละ 0.5 วินาที
 
     return () => clearInterval(interval);
   }, []);
 
-  if (redirect) {
-    return <Navigate to="/" />;
-  }
+  if (redirect) return <Navigate to="/" />;
 
-  return <div>No Permission. Redirecting in {count}...</div>;
+  return (
+    <div className="flex flex-col items-center justify-center h-screen bg-gray-100">
+      <div className="text-red-600 text-2xl font-bold mb-4 animate-pulse">
+        No Permission
+      </div>
+      <div className="text-gray-700 text-xl">
+        Redirecting in{" "}
+        <span className="text-blue-500 font-semibold text-3xl animate-bounce">
+          {count}
+        </span>{" "}
+        seconds...
+      </div>
+    </div>
+  );
 };
 
 export default LoadingToRedirect;
