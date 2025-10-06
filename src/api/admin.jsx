@@ -1,31 +1,13 @@
 import axios from "axios";
 
-const API =
-  import.meta.env.VITE_API || "https://server-api-newgenz.vercel.app/api";
+const API = import.meta.env.VITE_API || "https://server-api-newgenz.vercel.app/api";
 
-export const getOrdersAdmin = async (token, signal) => {
-  try {
-    const response = await axios.get(`${API}/admin/orders`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      signal, // Add AbortController signal
-      timeout: 10000, // 10 second timeout
-    });
-    return response;
-  } catch (error) {
-    if (axios.isCancel(error)) {
-      throw new Error('Request cancelled');
-    }
-    if (error.response) {
-      // Server responded with error
-      throw new Error(error.response.data.message || 'Failed to fetch orders');
-    }
-    if (error.code === 'ECONNABORTED') {
-      throw new Error('Request timed out');
-    }
-    throw error;
-  }
+export const getOrdersAdmin = async (token) => {
+  return axios.get(`${API}/admin/orders`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
 };
 export const changeOrderStatus = async (token, orderId, orderStatus) => {
   // Backend expects Thai status labels; accept either enum or Thai label here

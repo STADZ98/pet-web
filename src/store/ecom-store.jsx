@@ -5,8 +5,7 @@ import { listCategory } from "../api/category";
 import { listProductBy, searchFilters } from "../api/product";
 import { listBrand } from "../api/brand";
 
-const API =
-  import.meta.env.VITE_API || "https://server-api-newgenz.vercel.app/api";
+const API = import.meta.env.VITE_API || "https://server-api-newgenz.vercel.app/api";
 
 // 🎯 initial state
 const initialState = {
@@ -129,7 +128,7 @@ const ecomStore = (set, get) => ({
         limit = args[2] ?? limit;
       }
 
-      const res = await listProductBy(sort, order, limit, token);
+      const res = await listProductBy(token, sort, order, limit);
       set({ products: res.data });
     } catch (err) {
       console.error("Error fetching products:", err);
