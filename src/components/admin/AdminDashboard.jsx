@@ -86,6 +86,7 @@ const AdminDashboard = () => {
     totalUsers: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null); // State for Order Detail Modal
   const [selectedProduct, setSelectedProduct] = useState(null); // State for Product Detail Modal
   const [dailySales, setDailySales] = useState([]);
