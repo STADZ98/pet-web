@@ -1,6 +1,6 @@
-// src/components/card/ProductCard.jsx (Revised)
+// src/components/card/ProductCard.jsx
 import React, { memo, useState, useEffect, useRef } from "react";
-import { ShoppingCart, Heart, Eye, Star, X } from "lucide-react";
+import { ShoppingCart, Heart, Eye, X } from "lucide-react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import useEcomStore from "../../store/ecom-store";
@@ -37,7 +37,7 @@ const QuickViewModal = ({ item, onClose, onAddToCart }) => {
 
   const handleImageError = (e) => {
     e.target.onerror = null;
-    e.target.src = "/img/default-category.png";
+    e.target.src = "/img/no-image.png"; // fallback image
   };
 
   const handleAddToCart = () => {
@@ -79,13 +79,21 @@ const QuickViewModal = ({ item, onClose, onAddToCart }) => {
         <div className="md:col-span-1 lg:col-span-2 relative bg-gray-50 flex flex-col items-center justify-center p-6 lg:p-12">
           {item.images && item.images.length > 0 ? (
             <img
-              src={item.images[imageIndex]?.url || item.images[0]?.url}
+              src={
+                item.images[imageIndex]?.url ||
+                item.images[0]?.url ||
+                "/img/no-image.png"
+              }
               alt={`${item.title} ${imageIndex + 1}`}
               className="max-h-96 object-contain w-full rounded-lg shadow-lg"
               onError={handleImageError}
             />
           ) : (
-            <div className="text-gray-300 text-6xl">📦</div>
+            <img
+              src="/img/no-image.png"
+              alt="ไม่มีภาพสินค้า"
+              className="max-h-96 object-contain w-full rounded-lg shadow-lg"
+            />
           )}
 
           {/* Navigation Buttons */}
@@ -239,7 +247,6 @@ const QuickViewModal = ({ item, onClose, onAddToCart }) => {
     </div>
   );
 
-  // Render modal into document.body to avoid stacking-context/overflow issues
   if (typeof document !== "undefined") {
     return createPortal(modalContent, document.body);
   }
@@ -251,6 +258,7 @@ const QuickViewModal = ({ item, onClose, onAddToCart }) => {
 const ProductCard = ({ item, onAddToCart }) => {
   const [quickViewOpen, setQuickViewOpen] = useState(false);
   const navigate = useNavigate();
+
   const handleCardClick = (e) => {
     if (e.target.closest("button")) return;
     navigate(`/product/${item.id}`);
@@ -258,7 +266,7 @@ const ProductCard = ({ item, onAddToCart }) => {
 
   const handleImageError = (e) => {
     e.target.onerror = null;
-    e.target.src = "/img/default-category.png";
+    e.target.src = "/img/no-image.png"; // fallback image
   };
 
   return (
@@ -277,7 +285,6 @@ const ProductCard = ({ item, onAddToCart }) => {
         className="group bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-xl cursor-pointer flex flex-col w-full max-w-sm md:w-64 overflow-hidden relative transform-gpu"
         title={item.title || "สินค้า"}
       >
-        {/* Badges and Image */}
         <div className="relative w-full h-48 bg-gray-50 flex items-center justify-center p-5">
           {item.isNew && (
             <span className="absolute top-3 left-3 bg-emerald-600 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-sm z-10">
@@ -301,9 +308,11 @@ const ProductCard = ({ item, onAddToCart }) => {
                 onError={handleImageError}
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-gray-300">
-                <span className="text-4xl"></span>
-              </div>
+              <img
+                src="/img/no-image.png"
+                alt="ไม่มีภาพสินค้า"
+                className="w-full h-full object-contain"
+              />
             )}
           </div>
         </div>
@@ -328,6 +337,7 @@ const ProductCard = ({ item, onAddToCart }) => {
               )}
             </div>
           </div>
+
           <div className="pt-2">
             <button
               onClick={(e) => {
@@ -339,13 +349,13 @@ const ProductCard = ({ item, onAddToCart }) => {
               type="button"
               aria-label={`ดูรายละเอียดด่วนของ ${item.title || "สินค้า"}`}
             >
-              {/* Icon inherits text color from the button for consistent styling */}
               <Eye className="w-4 h-4 text-white" aria-hidden />
               <span className="text-sm">ดูด่วน</span>
             </button>
           </div>
         </div>
       </Motion.div>
+
       <AnimatePresence>
         {quickViewOpen && (
           <QuickViewModal
@@ -374,11 +384,6 @@ ProductCard.propTypes = {
       PropTypes.string,
       PropTypes.shape({ name: PropTypes.string }),
     ]),
-    category: PropTypes.shape({ name: PropTypes.string }),
-    categoryName: PropTypes.string,
-    avgRating: PropTypes.number,
-    inStock: PropTypes.number,
-    sold: PropTypes.number,
   }).isRequired,
   onAddToCart: PropTypes.func,
 };
