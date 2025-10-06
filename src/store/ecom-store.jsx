@@ -5,7 +5,8 @@ import { listCategory } from "../api/category";
 import { listProductBy, searchFilters } from "../api/product";
 import { listBrand } from "../api/brand";
 
-const API = import.meta.env.VITE_API || "https://server-api-newgenz.vercel.app/api";
+const API =
+  import.meta.env.VITE_API || "https://server-api-newgenz.vercel.app/api";
 
 // 🎯 initial state
 const initialState = {
