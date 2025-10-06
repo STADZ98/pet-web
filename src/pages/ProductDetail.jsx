@@ -268,7 +268,9 @@ const ProductDetail = () => {
       setLoading(true);
       try {
         // Always fetch full product detail from the API to ensure variants are included
-        const res = await axios.get(`/api/product/${id}`);
+        const res = await axios.get(
+          `${import.meta.env.VITE_API}/product/${id}`
+        );
         // Backend may return the product directly or wrapped; handle both
         const fetched = res?.data?.product || res?.data || null;
         if (!isMounted) return;
@@ -731,7 +733,6 @@ const ProductDetail = () => {
                 {product.title}
               </h1>
               <div className="flex items-center gap-3 mt-2">
-                
                 <span className="text-sm text-gray-500">
                   {reviews.length} รีวิว
                 </span>
