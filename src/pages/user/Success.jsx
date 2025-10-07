@@ -149,22 +149,95 @@ const Success = () => {
   };
 
   useEffect(() => {
-    // ถ้ามี order ถูกส่งมาจากหน้า CheckoutForm ให้ใช้เลย
-    if (passedOrder) {
-      setLatestOrder(normalizeOrder(passedOrder));
-      setLoadingOrder(false);
-      return;
-    }
+    // ถ้ามี order ถูกส่งมาจากหน้า CheckoutForm: อย่าเรนเดอร์จนกว่า server จะมี order
+    // เราจะพยายาม poll /user/order เพื่อหา order ที่ตรงกับ passedOrder (โดยใช้ stripePaymentId เป็นหลัก)
+    let mounted = true;
+    let pollTimer = null;
 
-    // ensure products are loaded first (some pages rely on products for image normalization)
-    async function ensureProductsThenFetchOrder() {
+    const findMatchingOrder = (orders, passed) => {
+      if (!Array.isArray(orders) || !passed) return null;
+      // prefer exact stripePaymentId match
+      if (passed.stripePaymentId) {
+        const m = orders.find(
+          (o) => o.stripePaymentId === passed.stripePaymentId
+        );
+        if (m) return m;
+      }
+      // fallback: match by amount and approximate createdAt (within 2 minutes)
+      if (passed.amount) {
+        const passedAmount = Number(passed.amount);
+        const passedTime = passed.createdAt
+          ? new Date(passed.createdAt).getTime()
+          : null;
+        return orders.find((o) => {
+          const okAmount = Number(o.amount) === passedAmount;
+          if (!passedTime) return okAmount;
+          const oTime = o.createdAt ? new Date(o.createdAt).getTime() : 0;
+          const delta = Math.abs(oTime - passedTime);
+          return okAmount && delta < 2 * 60 * 1000; // within 2 minutes
+        });
+      }
+      // last resort: return newest
+      return (
+        orders.sort(
+          (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+        )[0] || null
+      );
+    };
+
+    async function pollForOrder() {
+      setLoadingOrder(true);
       try {
-        setLoadingOrder(true);
-        // If store has no products, attempt to load them
+        // ensure products loaded
         if (!productsFromStore || productsFromStore.length === 0) {
           await getProduct();
         }
 
+        const maxAttempts = 8; // ~16 seconds with 2s interval
+        const interval = 2000;
+        let attempt = 0;
+        let found = null;
+
+        while (mounted && attempt < maxAttempts && !found) {
+          attempt += 1;
+          try {
+            const res = await getOrders(token);
+            if (res?.data?.ok && Array.isArray(res.data.orders)) {
+              found = findMatchingOrder(res.data.orders, passedOrder);
+              if (found) break;
+            }
+          } catch (e) {
+            // ignore individual errors and retry
+            console.warn("getOrders attempt failed", attempt, e?.message || e);
+          }
+          // wait before next attempt
+          await new Promise((r) => (pollTimer = setTimeout(r, interval)));
+        }
+
+        if (!mounted) return;
+
+        if (found) {
+          setLatestOrder(normalizeOrder(found));
+        } else {
+          // fallback: if we have a passedOrder but server never returned it in time,
+          // show the passedOrder so user can see confirmation (but mark that it's optimistic)
+          setLatestOrder(normalizeOrder(passedOrder));
+        }
+      } catch (error) {
+        console.error("Failed to load orders", error);
+        if (mounted) setLatestOrder(normalizeOrder(passedOrder));
+      } finally {
+        if (mounted) setLoadingOrder(false);
+      }
+    }
+
+    // ถ้าไม่มี passedOrder ให้เรียกปกติ
+    async function ensureProductsThenFetchOrder() {
+      setLoadingOrder(true);
+      try {
+        if (!productsFromStore || productsFromStore.length === 0) {
+          await getProduct();
+        }
         const res = await getOrders(token);
         if (res.data.ok && res.data.orders.length > 0) {
           const sortedOrders = res.data.orders.sort(
@@ -182,7 +255,19 @@ const Success = () => {
       }
     }
 
-    if (token) ensureProductsThenFetchOrder();
+    if (passedOrder) {
+      // start polling until server reflects the new order
+      pollForOrder();
+    } else if (token) {
+      ensureProductsThenFetchOrder();
+    } else {
+      setLoadingOrder(false);
+    }
+
+    return () => {
+      mounted = false;
+      if (pollTimer) clearTimeout(pollTimer);
+    };
   }, [token, passedOrder, getProduct, productsFromStore]);
 
   const handleCancelOrder = async () => {
