@@ -727,10 +727,19 @@ const TableUsers = () => {
     const normalizedUser = {
       ...user,
       name: user.addresses?.[0]?.name || "",
-      // Normalize telephone to digits only and limit to 10 characters
-      telephone: (user.addresses?.[0]?.telephone || "")
-        .replace(/\D/g, "")
-        .slice(0, 10),
+      // Normalize telephone: strip non-digits, convert +66 (leading 66) to local 0-prefixed form,
+      // and ensure we keep a 10-digit local number (take last 10 digits if longer).
+      telephone: (() => {
+        const raw = (user.addresses?.[0]?.telephone || "").replace(/\D/g, "");
+        if (!raw) return "";
+        // If stored as international Thai without + (e.g. 66812345678), convert to 0812345678
+        if (raw.startsWith("66") && raw.length >= 11) {
+          return "0" + raw.slice(2, 11);
+        }
+        // If longer than 10 digits, keep the last 10 (most likely the local subscriber number)
+        if (raw.length > 10) return raw.slice(-10);
+        return raw;
+      })(),
       address: user.addresses?.[0]?.address || "",
       picture: user.picture || "",
     };
