@@ -20,6 +20,8 @@ import {
 
 const Success = () => {
   const token = useEcomStore((state) => state.token);
+  const getProduct = useEcomStore((state) => state.getProduct);
+  const productsFromStore = useEcomStore((state) => state.products);
   const navigate = useNavigate();
   const location = useLocation();
   const passedOrder = location.state?.order || null;
@@ -154,10 +156,15 @@ const Success = () => {
       return;
     }
 
-    // ดึง order ล่าสุดจาก backend
-    async function fetchLatestOrder() {
+    // ensure products are loaded first (some pages rely on products for image normalization)
+    async function ensureProductsThenFetchOrder() {
       try {
         setLoadingOrder(true);
+        // If store has no products, attempt to load them
+        if (!productsFromStore || productsFromStore.length === 0) {
+          await getProduct();
+        }
+
         const res = await getOrders(token);
         if (res.data.ok && res.data.orders.length > 0) {
           const sortedOrders = res.data.orders.sort(
@@ -175,8 +182,8 @@ const Success = () => {
       }
     }
 
-    if (token) fetchLatestOrder();
-  }, [token, passedOrder]);
+    if (token) ensureProductsThenFetchOrder();
+  }, [token, passedOrder, getProduct, productsFromStore]);
 
   const handleCancelOrder = async () => {
     if (!window.confirm("คุณต้องการยกเลิกคำสั่งซื้อนี้หรือไม่?")) return;
