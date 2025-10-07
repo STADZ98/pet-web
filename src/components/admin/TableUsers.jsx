@@ -284,7 +284,7 @@ const EditForm = ({ form, setForm, onSave, onCancel }) => {
           onChange={handleInputChange}
           placeholder="กรอกเบอร์โทรศัพท์ (10 หลัก)"
           inputMode="numeric"
-          pattern="\\d*"
+          pattern="(^$|^[0-9]{10}$)"
           maxLength={10}
         />{" "}
         {validationErrors.telephone && (
