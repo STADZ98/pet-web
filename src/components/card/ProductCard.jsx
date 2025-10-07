@@ -88,6 +88,8 @@ const QuickViewModal = ({ item, onClose, onAddToCart }) => {
             )}
             alt={item.title || "ไม่มีภาพสินค้า"}
             className="max-h-96 object-contain w-full rounded-lg shadow-lg"
+            width={640}
+            height={384}
             onError={handleImageError}
           />
 
@@ -218,18 +220,11 @@ const ProductCard = ({ item, onAddToCart }) => {
 
   return (
     <>
-      <Motion.div
-        initial={{ opacity: 0, y: 16, scale: 0.995 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        whileHover={{ scale: 1.02, y: -4 }}
-        transition={{
-          duration: 0.28,
-          type: "spring",
-          stiffness: 200,
-          damping: 22,
-        }}
+      <div
         onClick={handleCardClick}
-        className="group bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-xl cursor-pointer flex flex-col w-full max-w-sm md:w-64 overflow-hidden relative transform-gpu"
+        // use a lightweight CSS hover transform instead of animating on mount
+        style={{ willChange: "transform, opacity" }}
+        className="group bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-xl cursor-pointer flex flex-col w-full max-w-sm md:w-64 overflow-hidden relative transform-gpu transition-transform duration-200 hover:scale-[1.02] hover:-translate-y-1"
         title={item.title || "สินค้า"}
       >
         <div className="relative w-full h-48 bg-gray-50 flex items-center justify-center p-5">
@@ -249,6 +244,8 @@ const ProductCard = ({ item, onAddToCart }) => {
               src={secureImageUrl(item.images?.[0]?.url)}
               alt={item.title || "ไม่มีภาพสินค้า"}
               className="w-full h-full object-contain transition-transform duration-400 ease-in-out hover:scale-105"
+              width={320}
+              height={192}
               loading="lazy"
               decoding="async"
               onError={handleImageError}
@@ -287,7 +284,7 @@ const ProductCard = ({ item, onAddToCart }) => {
             <span className="text-sm">ดูด่วน</span>
           </button>
         </div>
-      </Motion.div>
+      </div>
 
       <AnimatePresence>
         {quickViewOpen && (
