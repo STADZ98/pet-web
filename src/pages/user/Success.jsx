@@ -58,6 +58,28 @@ const Success = () => {
     return url.startsWith("/") ? url : `/${url.replace(/^\/+/, "")}`;
   };
 
+  // เลือก image ตัวแรกจากแหล่งต่าง ๆ (variant.image, variant.images[0], product.image, product.images[0])
+  const pickImageCandidate = (item) => {
+    if (!item) return null;
+    // prefer explicit image fields
+    const candidates = [];
+    if (item.variant) {
+      candidates.push(item.variant.image || null);
+      if (Array.isArray(item.variant.images) && item.variant.images.length)
+        candidates.push(item.variant.images[0]);
+    }
+    if (item.product) {
+      candidates.push(item.product.image || null);
+      if (Array.isArray(item.product.images) && item.product.images.length)
+        candidates.push(item.product.images[0]);
+    }
+    // also support raw fields that might exist
+    candidates.push(item.image || null);
+    // find first non-null
+    const found = candidates.find((c) => c !== undefined && c !== null);
+    return found || null;
+  };
+
   // ✅ normalize order ที่ได้จาก Prisma / API ให้อยู่ในรูปที่ UI ใช้งานได้
   const normalizeOrder = (o) => {
     if (!o) return null;
@@ -295,8 +317,7 @@ const Success = () => {
         <Card title="รายการสินค้า">
           <ul className="divide-y divide-gray-200">
             {products.map((item) => {
-              const displayImage =
-                item.variant?.image || item.product?.image || null;
+              const displayImage = pickImageCandidate(item);
               const displayTitle = item.variant?.title
                 ? `${item.product?.title || ""} - ${item.variant.title}`
                 : item.product?.title || "สินค้าที่ไม่มีชื่อ";
