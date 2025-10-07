@@ -1,6 +1,5 @@
-// src/components/card/ProductCard.jsx
 import React, { memo, useState, useEffect, useRef } from "react";
-import { ShoppingCart, Heart, Eye, X } from "lucide-react";
+import { ShoppingCart, Eye, X } from "lucide-react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import useEcomStore from "../../store/ecom-store";
@@ -10,39 +9,31 @@ import { createPortal } from "react-dom";
 
 const FALLBACK_IMAGE = "https://server-api-newgenz.vercel.app/no-image.png";
 
-// QuickView Modal
+// ✅ QuickView Modal
 const QuickViewModal = ({ item, onClose, onAddToCart }) => {
   const [imageIndex, setImageIndex] = useState(0);
   const [qty, setQty] = useState(1);
   const closeBtnRef = useRef(null);
   const triggerRef = useRef(null);
   const actionAddtoCart = useEcomStore((state) => state.actionAddtoCart);
-  const navigate = useNavigate();
 
   useEffect(() => {
-    const onKey = (e) => {
-      if (e.key === "Escape") onClose();
-    };
+    const handleKey = (e) => e.key === "Escape" && onClose();
     triggerRef.current = document.activeElement;
-    window.addEventListener("keydown", onKey);
+    window.addEventListener("keydown", handleKey);
     setTimeout(() => closeBtnRef.current?.focus?.(), 60);
-
     return () => {
-      window.removeEventListener("keydown", onKey);
-      try {
-        triggerRef.current?.focus?.();
-      } catch {}
+      window.removeEventListener("keydown", handleKey);
+      triggerRef.current?.focus?.();
     };
   }, [onClose]);
 
-  const handleImageError = (e) => {
-    e.target.onerror = null;
-    e.target.src = FALLBACK_IMAGE;
-  };
+  const getSecureUrl = (url) =>
+    url?.replace(/^http:\/\//, "https://") || FALLBACK_IMAGE;
 
   const handleAddToCart = () => {
     actionAddtoCart({ ...item, qty });
-    if (onAddToCart) onAddToCart();
+    onAddToCart?.();
     onClose();
   };
 
@@ -51,43 +42,36 @@ const QuickViewModal = ({ item, onClose, onAddToCart }) => {
       className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
-      aria-label={`Quick view: ${item.title || "สินค้า"}`}
       onClick={onClose}
     >
       <Motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
       />
 
       <Motion.div
-        className="relative z-10 w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
         onClick={(e) => e.stopPropagation()}
-        initial={{ opacity: 0, y: 18, scale: 0.98 }}
+        className="relative z-10 w-full max-w-4xl bg-white rounded-2xl shadow-2xl grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 overflow-hidden"
+        initial={{ opacity: 0, y: 20, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 12, scale: 0.995 }}
-        transition={{
-          duration: 0.22,
-          type: "spring",
-          stiffness: 260,
-          damping: 24,
-        }}
-        role="document"
+        exit={{ opacity: 0, y: 10, scale: 0.98 }}
+        transition={{ duration: 0.25 }}
       >
-        <div className="md:col-span-1 lg:col-span-2 relative bg-gray-50 flex flex-col items-center justify-center p-6 lg:p-12">
+        {/* ภาพสินค้า */}
+        <div className="md:col-span-1 lg:col-span-2 relative flex flex-col items-center justify-center bg-gray-50 p-6 lg:p-12">
           <img
-            src={
-              item.images?.[imageIndex]?.url ||
-              item.images?.[0]?.url ||
-              FALLBACK_IMAGE
-            }
+            src={getSecureUrl(
+              item.images?.[imageIndex]?.url || item.images?.[0]?.url
+            )}
             alt={item.title || "ไม่มีภาพสินค้า"}
-            className="max-h-96 object-contain w-full rounded-lg shadow-lg"
-            onError={handleImageError}
+            className="max-h-96 w-full object-contain rounded-lg shadow-lg"
+            onError={(e) => (e.target.src = FALLBACK_IMAGE)}
+            loading="lazy"
+            decoding="async"
           />
-
-          {item.images && item.images.length > 1 && (
+          {item.images?.length > 1 && (
             <>
               <button
                 onClick={() =>
@@ -95,59 +79,52 @@ const QuickViewModal = ({ item, onClose, onAddToCart }) => {
                     (i) => (i - 1 + item.images.length) % item.images.length
                   )
                 }
-                className="absolute left-4 top-1/2 -translate-y-1/2 z-20 bg-white/70 hover:bg-white p-3 rounded-full shadow-md transition"
-                aria-label="ก่อนหน้า"
+                className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/70 hover:bg-white p-3 rounded-full shadow"
               >
-                <span className="text-2xl font-bold text-gray-700">‹</span>
+                ‹
               </button>
               <button
                 onClick={() =>
                   setImageIndex((i) => (i + 1) % item.images.length)
                 }
-                className="absolute right-4 top-1/2 -translate-y-1/2 z-20 bg-white/70 hover:bg-white p-3 rounded-full shadow-md transition"
-                aria-label="ถัดไป"
+                className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/70 hover:bg-white p-3 rounded-full shadow"
               >
-                <span className="text-2xl font-bold text-gray-700">›</span>
+                ›
               </button>
             </>
           )}
         </div>
 
-        <div className="p-6 md:p-8 flex flex-col justify-between col-span-1">
+        {/* รายละเอียด */}
+        <div className="p-6 md:p-8 flex flex-col justify-between">
           <button
             ref={closeBtnRef}
             onClick={onClose}
-            className="absolute top-4 right-4 text-gray-500 hover:text-gray-900 p-2 rounded-full bg-white transition"
-            aria-label="ปิด"
+            className="absolute top-4 right-4 text-gray-500 hover:text-gray-900 p-2 rounded-full bg-white"
           >
             <X className="w-5 h-5" />
           </button>
 
           <div className="space-y-4">
-            <div className="flex flex-col gap-2">
-              <span className="text-sm font-semibold text-gray-500 uppercase">
-                {item.brand?.name || "แบรนด์"}
-              </span>
-              <h4 className="text-2xl md:text-3xl font-extrabold text-gray-900 leading-tight">
-                {item.title}
-              </h4>
-            </div>
+            <span className="text-sm font-semibold text-gray-500 uppercase">
+              {item.brand?.name || "แบรนด์"}
+            </span>
+            <h4 className="text-2xl font-extrabold text-gray-900">
+              {item.title}
+            </h4>
 
-            <div className="flex items-end gap-4 mt-2">
-              <div className="flex items-baseline gap-2">
-                <span className="text-lg text-gray-600">฿</span>
-                <span className="text-4xl font-extrabold text-rose-600">
-                  {numberFormat(item.price || 0)}
-                </span>
-              </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-xl font-extrabold text-rose-600">
+                ฿{numberFormat(item.price || 0)}
+              </span>
               {item.originalPrice && item.discountPercentage && (
-                <div className="text-base text-gray-400 line-through">
+                <span className="text-sm text-gray-400 line-through">
                   ฿{numberFormat(item.originalPrice)}
-                </div>
+                </span>
               )}
             </div>
 
-            <p className="text-sm text-gray-600 mt-4 leading-relaxed line-clamp-4">
+            <p className="text-sm text-gray-600 line-clamp-4">
               {item.description ||
                 item.shortDescription ||
                 "ไม่มีคำอธิบายเพิ่มเติม"}
@@ -156,32 +133,30 @@ const QuickViewModal = ({ item, onClose, onAddToCart }) => {
 
           <div className="mt-6 flex flex-col gap-4">
             <div className="flex items-center gap-3">
-              <div className="inline-flex items-center border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+              {/* ปุ่มจำนวนสินค้า */}
+              <div className="inline-flex items-center border border-gray-200 rounded-xl overflow-hidden">
                 <button
                   onClick={() => setQty((q) => Math.max(1, q - 1))}
-                  className="px-4 py-3 bg-gray-100 text-gray-700 hover:bg-gray-200 transition"
-                  aria-label="ลดจำนวน"
+                  className="px-4 py-3 bg-gray-100 hover:bg-gray-200"
                 >
-                  <span className="font-bold">-</span>
+                  -
                 </button>
-                <div className="px-5 py-3 bg-white text-center font-semibold text-gray-800">
-                  {qty}
-                </div>
+                <div className="px-5 py-3 bg-white font-semibold">{qty}</div>
                 <button
                   onClick={() => setQty((q) => q + 1)}
-                  className="px-4 py-3 bg-gray-100 text-gray-700 hover:bg-gray-200 transition"
-                  aria-label="เพิ่มจำนวน"
+                  className="px-4 py-3 bg-gray-100 hover:bg-gray-200"
                 >
-                  <span className="font-bold">+</span>
+                  +
                 </button>
               </div>
 
+              {/* ปุ่มเพิ่มในตะกร้า */}
               <button
                 onClick={handleAddToCart}
-                className="flex-1 px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold rounded-xl shadow-lg transition-all"
+                className="flex-1 px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl hover:from-orange-600 hover:to-orange-700 shadow-md"
               >
-                <ShoppingCart className="inline-block w-5 h-5 mr-2" />
-                <span>เพิ่มลงในตะกร้า</span>
+                <ShoppingCart className="inline w-5 h-5 mr-2" />
+                เพิ่มลงในตะกร้า
               </button>
             </div>
           </div>
@@ -190,14 +165,12 @@ const QuickViewModal = ({ item, onClose, onAddToCart }) => {
     </div>
   );
 
-  if (typeof document !== "undefined") {
-    return createPortal(modalContent, document.body);
-  }
-
-  return modalContent;
+  return typeof document !== "undefined"
+    ? createPortal(modalContent, document.body)
+    : modalContent;
 };
 
-// ProductCard
+// ✅ ProductCard
 const ProductCard = ({ item, onAddToCart }) => {
   const [quickViewOpen, setQuickViewOpen] = useState(false);
   const navigate = useNavigate();
@@ -207,68 +180,54 @@ const ProductCard = ({ item, onAddToCart }) => {
     navigate(`/product/${item.id}`);
   };
 
-  const handleImageError = (e) => {
-    e.target.onerror = null;
-    e.target.src = FALLBACK_IMAGE;
-  };
+  const getSecureUrl = (url) =>
+    url?.replace(/^http:\/\//, "https://") || FALLBACK_IMAGE;
 
   return (
     <>
       <Motion.div
-        initial={{ opacity: 0, y: 16, scale: 0.995 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        whileHover={{ scale: 1.02, y: -4 }}
-        transition={{
-          duration: 0.28,
-          type: "spring",
-          stiffness: 200,
-          damping: 22,
-        }}
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        whileHover={{ scale: 1.02, y: -2 }}
+        transition={{ duration: 0.25 }}
         onClick={handleCardClick}
-        className="group bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-xl cursor-pointer flex flex-col w-full max-w-sm md:w-64 overflow-hidden relative transform-gpu"
-        title={item.title || "สินค้า"}
+        className="group bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-xl cursor-pointer flex flex-col w-full max-w-sm overflow-hidden"
       >
+        {/* รูปสินค้า */}
         <div className="relative w-full h-48 bg-gray-50 flex items-center justify-center p-5">
           {item.isNew && (
-            <span className="absolute top-3 left-3 bg-emerald-600 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-sm z-10">
+            <span className="absolute top-3 left-3 bg-emerald-600 text-white text-xs font-semibold px-3 py-1 rounded-full shadow">
               ใหม่
             </span>
           )}
           {item.discountPercentage && (
-            <span className="absolute top-3 left-14 bg-red-500 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-sm z-10">
+            <span className="absolute top-3 left-14 bg-red-500 text-white text-xs font-semibold px-3 py-1 rounded-full shadow">
               -{item.discountPercentage}%
             </span>
           )}
-
-          <div className="relative w-full h-full rounded-lg overflow-hidden bg-white">
-            <img
-              src={item.images?.[0]?.url || FALLBACK_IMAGE}
-              alt={item.title || "ไม่มีภาพสินค้า"}
-              className="w-full h-full object-contain transition-transform duration-400 ease-in-out hover:scale-105"
-              loading="lazy"
-              decoding="async"
-              onError={handleImageError}
-            />
-          </div>
+          <img
+            src={getSecureUrl(item.images?.[0]?.url)}
+            alt={item.title || "ไม่มีภาพสินค้า"}
+            className="w-full h-full object-contain hover:scale-105 transition-transform duration-300"
+            loading="lazy"
+            decoding="async"
+            onError={(e) => (e.target.src = FALLBACK_IMAGE)}
+          />
         </div>
 
+        {/* ข้อมูลสินค้า */}
         <div className="flex flex-col flex-1 px-4 py-4 gap-3">
-          <h3
-            className="text-md md:text-lg font-semibold text-gray-900 leading-tight line-clamp-2"
-            title={item.title}
-          >
+          <h3 className="text-md md:text-lg font-semibold text-gray-900 line-clamp-2">
             {item.title || "-"}
           </h3>
-
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-sm text-orange-600">฿</span>
-            <span className="text-xl md:text-2xl font-extrabold text-orange-600">
-              {numberFormat(item.price || 0)}
+          <div className="mt-1 flex items-baseline gap-2">
+            <span className="text-xl font-bold text-orange-600">
+              ฿{numberFormat(item.price || 0)}
             </span>
             {item.originalPrice && item.discountPercentage && (
-              <div className="text-sm text-gray-400 line-through">
+              <span className="text-sm text-gray-400 line-through">
                 ฿{numberFormat(item.originalPrice)}
-              </div>
+              </span>
             )}
           </div>
 
@@ -277,10 +236,10 @@ const ProductCard = ({ item, onAddToCart }) => {
               e.stopPropagation();
               setQuickViewOpen(true);
             }}
-            className="w-full opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 focus:opacity-100 focus:translate-y-0 transition-all duration-200 transform-gpu bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold py-2 px-4 rounded-full shadow-lg flex items-center justify-center gap-3 focus:outline-none focus:ring-4 focus:ring-orange-300"
+            className="w-full opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white py-2 px-4 rounded-full shadow-md transition-all"
           >
-            <Eye className="w-4 h-4 text-white" />
-            <span className="text-sm">ดูด่วน</span>
+            <Eye className="inline w-4 h-4 mr-2" />
+            ดูด่วน
           </button>
         </div>
       </Motion.div>
