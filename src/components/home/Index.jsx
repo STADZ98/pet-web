@@ -106,45 +106,16 @@ const ARTICLES = [
 // Data Hook (fetch + global store hydration)
 // -----------------------------------------------------------------------------
 const useProductData = () => {
-  const [productData, setProductData] = useState({
-    bestSeller: [],
-    newProduct: [],
-    loading: true,
-    error: null,
-  });
+  const [bestSeller, setBestSeller] = useState([]);
+  const [loadingBestSeller, setLoadingBestSeller] = useState(true);
+  const [newProduct, setNewProduct] = useState([]);
+  const [loadingNewProduct, setLoadingNewProduct] = useState(true);
 
   // Global stores
   const categories = useEcomStore((s) => s.categories || []);
   const subcategories = useEcomStore((s) => s.subcategories || []);
   const brands = useEcomStore((s) => s.brands || []);
   const getCategory = useEcomStore((s) => s.getCategory);
-
-  useEffect(() => {
-    const fetchProductData = async () => {
-      try {
-        const [bestSellerRes, newProductRes] = await Promise.all([
-          listProductBy("sold", "desc", 10),
-          listProductBy("updatedAt", "desc", 10),
-        ]);
-
-        setProductData({
-          bestSeller: bestSellerRes.data || [],
-          newProduct: newProductRes.data || [],
-          loading: false,
-          error: null,
-        });
-      } catch (error) {
-        console.error("Error fetching product data:", error);
-        setProductData((prev) => ({
-          ...prev,
-          loading: false,
-          error: "Failed to load products",
-        }));
-      }
-    };
-
-    fetchProductData();
-  }, []);
   const getSubcategories = useEcomStore((s) => s.getSubcategories);
   const getBrands = useEcomStore((s) => s.getBrands);
 
