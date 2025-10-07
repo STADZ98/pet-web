@@ -82,6 +82,18 @@ const Success = () => {
     };
   };
 
+  // Helper to get a usable image URL (handles string, object, and http->https)
+  const getImageUrl = (img) => {
+    if (!img) return null;
+    // img could be a string URL or an object like { url }
+    const url =
+      typeof img === "string" ? img : img?.url || img?.secure_url || null;
+    if (!url) return null;
+    // ensure https
+    if (url.startsWith("http://")) return url.replace("http://", "https://");
+    return url;
+  };
+
   useEffect(() => {
     // If order was passed from CheckoutForm (createdOrder), use it directly
     if (passedOrder) {
@@ -272,9 +284,15 @@ const Success = () => {
                 >
                   {displayImage ? (
                     <img
-                      src={displayImage}
+                      src={getImageUrl(displayImage)}
                       alt={displayTitle}
+                      width={56}
+                      height={56}
                       className="w-14 h-14 object-cover rounded-lg border"
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = "/no-image.png";
+                      }}
                     />
                   ) : (
                     <div className="w-14 h-14 bg-gray-100 rounded-lg flex items-center justify-center text-xs text-gray-400">
