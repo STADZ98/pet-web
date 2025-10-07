@@ -30,21 +30,32 @@ const Success = () => {
   // ✅ ฟังก์ชันช่วยจัดการ URL รูปภาพให้ถูกต้อง (รวมกรณี http, relative path, object)
   const getImageUrl = (img) => {
     if (!img) return null;
+    // support strings or objects coming from different upload providers
     const url =
-      typeof img === "string" ? img : img?.secure_url || img?.url || null;
+      typeof img === "string"
+        ? img
+        : img?.secure_url || img?.url || img?.src || null;
     if (!url) return null;
 
-    // ถ้าไม่ใช่ http(s) ให้ต่อกับ API URL
-    if (!/^https?:\/\//i.test(url)) {
-      return `${import.meta.env.VITE_API?.replace("/api", "")}/${url.replace(
-        /^\/+/,
-        ""
-      )}`;
+    // If already absolute (http/https or protocol-relative), normalize and return
+    if (/^(https?:)?\/\//i.test(url)) {
+      // convert http -> https to avoid mixed-content errors
+      if (url.startsWith("http://")) return url.replace("http://", "https://");
+      return url;
     }
 
-    // แปลง http → https ป้องกัน Mixed Content
-    if (url.startsWith("http://")) return url.replace("http://", "https://");
-    return url;
+    // Relative path: build using configured API base if present, otherwise return a leading-relative path
+    const apiBase =
+      import.meta.env.VITE_API || import.meta.env.VITE_API_URL || "";
+    const base = apiBase
+      ? apiBase.replace(/\/api\/?$/i, "").replace(/\/$/, "")
+      : "";
+    if (base) {
+      return `${base}/${url.replace(/^\/+/, "")}`;
+    }
+
+    // No base configured, return as relative path (ensure leading slash)
+    return url.startsWith("/") ? url : `/${url.replace(/^\/+/, "")}`;
   };
 
   // ✅ normalize order ที่ได้จาก Prisma / API ให้อยู่ในรูปที่ UI ใช้งานได้
