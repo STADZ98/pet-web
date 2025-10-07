@@ -46,6 +46,9 @@ const Success = () => {
       return url;
     }
 
+    // If it's a data URL or blob URL (base64 embedded), return as-is — do not prepend API base
+    if (/^data:/i.test(url) || /^blob:/i.test(url)) return url;
+
     // Relative path: build using configured API base if present, otherwise return a leading-relative path
     const apiBase =
       import.meta.env.VITE_API || import.meta.env.VITE_API_URL || "";
