@@ -5,8 +5,7 @@ import { listCategory } from "../api/category";
 import { listProductBy, searchFilters } from "../api/product";
 import { listBrand } from "../api/brand";
 
-const API =
-  import.meta.env.VITE_API || "https://server-api-newgen.vercel.app/api";
+const API = import.meta.env.VITE_API || "https://server-api-newgen.vercel.app/api";
 
 // 🎯 initial state
 const initialState = {
@@ -72,25 +71,8 @@ const ecomStore = (set, get) => ({
         profileRequestInFlight: false,
       });
     } catch (err) {
-      // stop the in-flight flag so retries can happen later
       set({ loadingProfile: false, profileRequestInFlight: false });
-
-      // If server responded, show it clearly
-      if (err.response) {
-        console.error(
-          "Error fetching profile: server responded",
-          err.response.status,
-          err.response.data
-        );
-
-        // on auth errors, clear stored token/profile to avoid repeat failing calls
-        if (err.response.status === 401 || err.response.status === 403) {
-          console.warn("Clearing stored token/profile due to auth error");
-          set({ token: null, profile: null, user: null });
-        }
-      } else {
-        console.error("Error fetching profile:", err.message || err);
-      }
+      console.error("Error fetching profile:", err);
     }
   },
 
@@ -105,22 +87,7 @@ const ecomStore = (set, get) => ({
       });
       set({ orders: res.data });
     } catch (err) {
-      if (err.response) {
-        console.error(
-          "Error fetching orders: server responded",
-          err.response.status,
-          err.response.data
-        );
-        if (err.response.status === 401 || err.response.status === 403) {
-          console.warn(
-            "Clearing stored token/profile due to auth error while fetching orders"
-          );
-          set({ token: null, profile: null, user: null, orders: [] });
-          return;
-        }
-      } else {
-        console.error("Error fetching orders:", err.message || err);
-      }
+      console.error("Error fetching orders:", err);
       set({ orders: [] });
     }
   },
@@ -153,16 +120,7 @@ const ecomStore = (set, get) => ({
       const res = await listProductBy(token, sort, order, limit);
       set({ products: res.data || [] });
     } catch (err) {
-      // surface server error body when available for easier debugging
-      if (err.response) {
-        console.error(
-          "getProduct error: server responded",
-          err.response.status,
-          err.response.data
-        );
-      } else {
-        console.error("getProduct error:", err.message || err);
-      }
+      console.error("getProduct error:", err.response?.data || err.message);
       set({ products: [] });
     }
   },
@@ -188,15 +146,7 @@ const ecomStore = (set, get) => ({
       const res = await listCategory();
       set({ categories: res.data });
     } catch (err) {
-      if (err.response) {
-        console.error(
-          "Error fetching categories: server responded",
-          err.response.status,
-          err.response.data
-        );
-      } else {
-        console.error("Error fetching categories:", err.message || err);
-      }
+      console.error("Error fetching categories:", err);
     }
   },
 
@@ -346,7 +296,7 @@ const usePersist = {
       images: item.images,
     })),
     filters: state.filters,
-  }),
+  })
 };
 
 const useEcomStore = create(persist(ecomStore, usePersist));
