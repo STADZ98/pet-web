@@ -1,3 +1,4 @@
+// src/pages/user/Success.jsx
 import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { getOrders, cancelOrder } from "../../api/user";
@@ -26,7 +27,27 @@ const Success = () => {
   const [cancelLoading, setCancelLoading] = useState(false);
   const [loadingOrder, setLoadingOrder] = useState(true);
 
-  // normalize order returned by saveOrder (prisma include) to the UI shape
+  // ✅ ฟังก์ชันช่วยจัดการ URL รูปภาพให้ถูกต้อง (รวมกรณี http, relative path, object)
+  const getImageUrl = (img) => {
+    if (!img) return null;
+    const url =
+      typeof img === "string" ? img : img?.secure_url || img?.url || null;
+    if (!url) return null;
+
+    // ถ้าไม่ใช่ http(s) ให้ต่อกับ API URL
+    if (!/^https?:\/\//i.test(url)) {
+      return `${import.meta.env.VITE_API?.replace("/api", "")}/${url.replace(
+        /^\/+/,
+        ""
+      )}`;
+    }
+
+    // แปลง http → https ป้องกัน Mixed Content
+    if (url.startsWith("http://")) return url.replace("http://", "https://");
+    return url;
+  };
+
+  // ✅ normalize order ที่ได้จาก Prisma / API ให้อยู่ในรูปที่ UI ใช้งานได้
   const normalizeOrder = (o) => {
     if (!o) return null;
     return {
@@ -60,8 +81,13 @@ const Success = () => {
                   image:
                     Array.isArray(p.product.images) &&
                     p.product.images.length > 0
-                      ? p.product.images[0].url || p.product.images[0]
-                      : p.product.image || null,
+                      ? p.product.images[0].secure_url ||
+                        p.product.images[0].url ||
+                        p.product.images[0]
+                      : p.product.image ||
+                        p.product.imageUrl ||
+                        p.product.img ||
+                        null,
                 }
               : null,
             variant: p.variant
@@ -73,8 +99,13 @@ const Success = () => {
                   image:
                     Array.isArray(p.variant.images) &&
                     p.variant.images.length > 0
-                      ? p.variant.images[0].url || p.variant.images[0]
-                      : null,
+                      ? p.variant.images[0].secure_url ||
+                        p.variant.images[0].url ||
+                        p.variant.images[0]
+                      : p.variant.image ||
+                        p.variant.imageUrl ||
+                        p.variant.img ||
+                        null,
                 }
               : null,
           }))
@@ -82,26 +113,15 @@ const Success = () => {
     };
   };
 
-  // Helper to get a usable image URL (handles string, object, and http->https)
-  const getImageUrl = (img) => {
-    if (!img) return null;
-    // img could be a string URL or an object like { url }
-    const url =
-      typeof img === "string" ? img : img?.url || img?.secure_url || null;
-    if (!url) return null;
-    // ensure https
-    if (url.startsWith("http://")) return url.replace("http://", "https://");
-    return url;
-  };
-
   useEffect(() => {
-    // If order was passed from CheckoutForm (createdOrder), use it directly
+    // ถ้ามี order ถูกส่งมาจากหน้า CheckoutForm ให้ใช้เลย
     if (passedOrder) {
       setLatestOrder(normalizeOrder(passedOrder));
       setLoadingOrder(false);
       return;
     }
 
+    // ดึง order ล่าสุดจาก backend
     async function fetchLatestOrder() {
       try {
         setLoadingOrder(true);
@@ -110,7 +130,6 @@ const Success = () => {
           const sortedOrders = res.data.orders.sort(
             (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
           );
-          // normalize shape so product.image / variant.image are usable strings
           setLatestOrder(normalizeOrder(sortedOrders[0]));
         } else {
           setLatestOrder(null);
@@ -122,6 +141,7 @@ const Success = () => {
         setLoadingOrder(false);
       }
     }
+
     if (token) fetchLatestOrder();
   }, [token, passedOrder]);
 
@@ -264,7 +284,6 @@ const Success = () => {
         <Card title="รายการสินค้า">
           <ul className="divide-y divide-gray-200">
             {products.map((item) => {
-              // prefer variant image/title when available
               const displayImage =
                 item.variant?.image || item.product?.image || null;
               const displayTitle = item.variant?.title
