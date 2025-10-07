@@ -1,8 +1,11 @@
 // src/components/product/ProductTabs.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, memo } from "react";
 import { SwiperSlide } from "swiper/react";
 import SwiperShowProduct from "../../utils/SwiperShowProduct";
 import ProductCard from "../card/ProductCard";
+
+// Use React.memo to prevent unnecessary re-renders
+const MemoizedProductCard = memo(ProductCard);
 
 const ProductTabs = ({
   bestSeller,
@@ -30,7 +33,7 @@ const ProductTabs = ({
     <SwiperShowProduct>
       {items.slice(0, 10).map((item, idx) => (
         <SwiperSlide key={item._id || idx}>
-          <ProductCard item={item} />
+          <MemoizedProductCard item={item} />
         </SwiperSlide>
       ))}
     </SwiperShowProduct>
