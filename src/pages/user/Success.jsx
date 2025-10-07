@@ -60,6 +60,11 @@ const Success = () => {
     return url.startsWith("/") ? url : `/${url.replace(/^\/+/, "")}`;
   };
 
+  // Inline fallback image (SVG) to avoid network dependency on /no-image.png
+  const NO_IMAGE_DATA_URL = `data:image/svg+xml;utf8,${encodeURIComponent(
+    `<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'><rect width='100%' height='100%' fill='%23f3f4f6'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%239ca3af' font-family='Arial, Helvetica, sans-serif' font-size='12'>No image</text></svg>`
+  )}`;
+
   // เลือก image ตัวแรกจากแหล่งต่าง ๆ (variant.image, variant.images[0], product.image, product.images[0])
   const pickImageCandidate = (item) => {
     if (!item) return null;
@@ -277,6 +282,13 @@ const Success = () => {
     };
   }, [token, passedOrder, getProduct, productsFromStore]);
 
+  // Debug: log latestOrder to help diagnose missing image fields in the payload
+  useEffect(() => {
+    if (latestOrder) {
+      console.debug("Success page latestOrder:", latestOrder);
+    }
+  }, [latestOrder]);
+
   const handleCancelOrder = async () => {
     if (!window.confirm("คุณต้องการยกเลิกคำสั่งซื้อนี้หรือไม่?")) return;
     setCancelLoading(true);
@@ -442,7 +454,7 @@ const Success = () => {
                       className="w-14 h-14 object-cover rounded-lg border"
                       onError={(e) => {
                         e.target.onerror = null;
-                        e.target.src = "/no-image.png";
+                        e.target.src = NO_IMAGE_DATA_URL;
                       }}
                     />
                   ) : (
