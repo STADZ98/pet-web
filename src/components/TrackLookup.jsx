@@ -339,13 +339,13 @@ export default function TrackLookup({ apiBase = "/api" }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialTrackingFromQuery]);
 
-  function clearAll() {
+  function _clearAll() {
     setTracking("");
     setResult(null);
     setError(null);
   }
 
-  function copyTracking() {
+  function _copyTracking() {
     if (!trackingLabel) return;
     try {
       navigator.clipboard?.writeText(trackingLabel);
@@ -354,7 +354,8 @@ export default function TrackLookup({ apiBase = "/api" }) {
       el.className =
         "fixed bottom-6 right-6 bg-gray-800 text-white px-4 py-2 rounded shadow-lg text-sm";
       document.body.appendChild(el);
-      setTimeout(() => document.body.removeChild(el), 1800);
+      // use remove() which doesn't throw if the node was already removed
+      setTimeout(() => el.remove(), 1800);
     } catch {
       // ignore clipboard errors
     }

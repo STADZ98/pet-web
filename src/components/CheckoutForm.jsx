@@ -340,7 +340,7 @@ const PromptPayQr = ({ piInfo }) => {
 
 export default function CheckoutPage({
   clientSecret,
-  selectedMethod = "card",
+  // selectedMethod unused in this component; removed to satisfy linter
 }) {
   const { token, clearCart } = useEcomStore();
   const navigate = useNavigate();
@@ -438,6 +438,17 @@ export default function CheckoutPage({
     setMessage(null);
 
     try {
+      // Ensure a mounted PaymentElement (or compatible element) exists
+      const mountedPaymentElement = elements.getElement(PaymentElement);
+      if (!mountedPaymentElement) {
+        const msg =
+          "Payment element is not mounted. Ensure the PaymentElement is rendered before submitting.";
+        setMessage(msg);
+        toast.error(msg);
+        setIsLoading(false);
+        return;
+      }
+
       const { error, paymentIntent } = await stripe.confirmPayment({
         elements,
         redirect: "if_required",

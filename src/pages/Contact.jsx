@@ -18,10 +18,11 @@ function copyToClipboard(text) {
   el.select();
   try {
     document.execCommand("copy");
-    document.body.removeChild(el);
+    // use el.remove() which is safe if the node is already detached
+    el.remove();
     return Promise.resolve();
   } catch (err) {
-    document.body.removeChild(el);
+    el.remove();
     return Promise.reject(err);
   }
 }
