@@ -548,14 +548,14 @@ const ProductDetail = () => {
         </div>
 
         {/* quick action on desktop */}
-        <div className="hidden sm:flex items-center gap-3 text-sm text-gray-500">
+        {/* <div className="hidden sm:flex items-center gap-3 text-sm text-gray-500">
           <button className="flex items-center gap-2 hover:text-red-500 transition">
             <Heart size={16} /> เพิ่มในรายการโปรด
           </button>
           <button className="flex items-center gap-2 hover:text-blue-500 transition">
             <Share2 size={16} /> แชร์
           </button>
-        </div>
+        </div> */}
       </div>
 
       <div className="grid md:grid-cols-2 gap-8 lg:gap-12 bg-white rounded-xl shadow-md p-6 md:p-8 items-start">
@@ -929,14 +929,14 @@ const ProductDetail = () => {
             </div>
           </div>
 
-          <div className="flex gap-4 mt-4 text-sm text-gray-500">
+          {/* <div className="flex gap-4 mt-4 text-sm text-gray-500">
             <button className="flex items-center hover:text-red-500 transition">
               <Heart size={18} className="mr-1" /> เพิ่มในรายการโปรด
             </button>
             <button className="flex items-center hover:text-blue-500 transition">
               <Share2 size={18} className="mr-1" /> แชร์
             </button>
-          </div>
+          </div> */}
         </div>
       </div>
 

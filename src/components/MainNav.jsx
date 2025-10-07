@@ -490,14 +490,14 @@ const MainNav = () => {
                         </svg>
                         ตั้งค่าบัญชี
                       </Link>
-                      <Link
+                      {/* <Link
                         to="/track"
                         onClick={() => setIsUserDropdownOpen(false)}
                         className="flex items-center gap-3 px-5 py-3 text-gray-700 hover:bg-yellow-50 transition font-medium"
                       >
                         <Truck className="text-gray-500" size={18} />
                         ตรวจสอบพัสดุ
-                      </Link>
+                      </Link> */}
 
                       {/* Logout */}
                       <button
