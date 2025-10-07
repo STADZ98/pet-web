@@ -83,6 +83,12 @@ const Profile = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    // For telephone field, allow only digits and limit to 10 chars
+    if (name === "telephone") {
+      const digits = value.replace(/\D/g, "").slice(0, 10);
+      setForm((s) => ({ ...s, [name]: digits }));
+      return;
+    }
     setForm((s) => ({ ...s, [name]: value }));
   };
 
@@ -91,6 +97,14 @@ const Profile = () => {
     if (form.password && form.password !== form.confirmPassword) {
       alert("รหัสผ่านไม่ตรงกัน");
       return;
+    }
+    // Validate telephone if provided
+    if (form.telephone) {
+      const digits = String(form.telephone).replace(/\D/g, "");
+      if (digits.length !== 10) {
+        alert("เบอร์โทรศัพท์ต้องเป็นตัวเลข 10 หลัก");
+        return;
+      }
     }
     if (!profile || !profile.id) {
       alert("ไม่พบข้อมูลผู้ใช้");
@@ -193,7 +207,10 @@ const Profile = () => {
                 value={form.telephone}
                 onChange={handleChange}
                 className="mt-1 w-full border border-gray-200 rounded-md p-2"
-                placeholder="08x-xxx-xxxx"
+                placeholder="0812345678"
+                inputMode="numeric"
+                pattern="(^$|^[0-9]{10}$)"
+                maxLength={10}
               />
             </div>
 
