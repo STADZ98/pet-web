@@ -10,6 +10,12 @@ import { createPortal } from "react-dom";
 
 const FALLBACK_IMAGE = "https://server-api-newgenz.vercel.app/no-image.png";
 
+// แปลง URL รูปให้เป็น HTTPS
+const secureImageUrl = (url) => {
+  if (!url) return FALLBACK_IMAGE;
+  return url.startsWith("http://") ? url.replace("http://", "https://") : url;
+};
+
 // QuickView Modal
 const QuickViewModal = ({ item, onClose, onAddToCart }) => {
   const [imageIndex, setImageIndex] = useState(0);
@@ -77,11 +83,9 @@ const QuickViewModal = ({ item, onClose, onAddToCart }) => {
       >
         <div className="md:col-span-1 lg:col-span-2 relative bg-gray-50 flex flex-col items-center justify-center p-6 lg:p-12">
           <img
-            src={
-              item.images?.[imageIndex]?.url ||
-              item.images?.[0]?.url ||
-              FALLBACK_IMAGE
-            }
+            src={secureImageUrl(
+              item.images?.[imageIndex]?.url || item.images?.[0]?.url
+            )}
             alt={item.title || "ไม่มีภาพสินค้า"}
             className="max-h-96 object-contain w-full rounded-lg shadow-lg"
             onError={handleImageError}
@@ -242,7 +246,7 @@ const ProductCard = ({ item, onAddToCart }) => {
 
           <div className="relative w-full h-full rounded-lg overflow-hidden bg-white">
             <img
-              src={item.images?.[0]?.url || FALLBACK_IMAGE}
+              src={secureImageUrl(item.images?.[0]?.url)}
               alt={item.title || "ไม่มีภาพสินค้า"}
               className="w-full h-full object-contain transition-transform duration-400 ease-in-out hover:scale-105"
               loading="lazy"
