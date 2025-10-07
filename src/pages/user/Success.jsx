@@ -110,7 +110,8 @@ const Success = () => {
           const sortedOrders = res.data.orders.sort(
             (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
           );
-          setLatestOrder(sortedOrders[0]);
+          // normalize shape so product.image / variant.image are usable strings
+          setLatestOrder(normalizeOrder(sortedOrders[0]));
         } else {
           setLatestOrder(null);
         }
