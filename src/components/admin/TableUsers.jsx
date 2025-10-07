@@ -183,6 +183,12 @@ const EditForm = ({ form, setForm, onSave, onCancel }) => {
   const handleInputChange = useCallback(
     (e) => {
       const { name, value } = e.target;
+      // If the field is telephone, allow only digits and limit to 10 chars
+      if (name === "telephone") {
+        const digits = value.replace(/\D/g, "").slice(0, 10);
+        setForm((prevForm) => ({ ...prevForm, [name]: digits }));
+        return;
+      }
       setForm((prevForm) => ({ ...prevForm, [name]: value }));
     },
     [setForm]
@@ -208,6 +214,13 @@ const EditForm = ({ form, setForm, onSave, onCancel }) => {
     }
     if (form.password !== form.confirm) {
       errors.confirm = "รหัสผ่านไม่ตรงกัน";
+    }
+    // If telephone provided, ensure it's exactly 10 digits
+    if (form.telephone) {
+      const digits = String(form.telephone).replace(/\D/g, "");
+      if (digits.length !== 10) {
+        errors.telephone = "เบอร์โทรศัพท์ต้องเป็นตัวเลข 10 หลัก";
+      }
     }
     setValidationErrors(errors);
 
@@ -269,8 +282,16 @@ const EditForm = ({ form, setForm, onSave, onCancel }) => {
           name="telephone"
           value={form.telephone}
           onChange={handleInputChange}
-          placeholder="กรอกเบอร์โทรศัพท์ (ถ้ามี)"
+          placeholder="กรอกเบอร์โทรศัพท์ (10 หลัก)"
+          inputMode="numeric"
+          pattern="\\d*"
+          maxLength={10}
         />{" "}
+        {validationErrors.telephone && (
+          <p className="text-red-500 text-xs mt-1">
+            {validationErrors.telephone}
+          </p>
+        )}
         <div className="relative">
           {" "}
           <Input
@@ -706,7 +727,10 @@ const TableUsers = () => {
     const normalizedUser = {
       ...user,
       name: user.addresses?.[0]?.name || "",
-      telephone: user.addresses?.[0]?.telephone || "",
+      // Normalize telephone to digits only and limit to 10 characters
+      telephone: (user.addresses?.[0]?.telephone || "")
+        .replace(/\D/g, "")
+        .slice(0, 10),
       address: user.addresses?.[0]?.address || "",
       picture: user.picture || "",
     };
