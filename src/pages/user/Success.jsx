@@ -256,8 +256,15 @@ const Success = () => {
     }
 
     if (passedOrder) {
-      // start polling until server reflects the new order
-      pollForOrder();
+      // If the order we received was returned directly from the server (saveOrder),
+      // it is authoritative and we can render it immediately without polling.
+      if (passedOrder.serverCreated) {
+        setLatestOrder(normalizeOrder(passedOrder));
+        setLoadingOrder(false);
+      } else {
+        // start polling until server reflects the new order
+        pollForOrder();
+      }
     } else if (token) {
       ensureProductsThenFetchOrder();
     } else {
