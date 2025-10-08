@@ -7,6 +7,7 @@ import { FiMail, FiLock } from "react-icons/fi";
 const Login = () => {
   const navigate = useNavigate();
   const actionLogin = useEcomStore((state) => state.actionLogin);
+  const getProduct = useEcomStore((state) => state.getProduct);
 
   const [form, setForm] = useState({
     email: "",
@@ -28,6 +29,25 @@ const Login = () => {
     try {
       const res = await actionLogin(form);
       const role = res.data.payload.role;
+      // Ensure product list is loaded before redirecting so the UI has data ready
+      try {
+        // call getProduct and wait for it to finish; use token from store if needed
+        // but don't block forever: if it takes too long, proceed after timeout
+        const timeoutMs = 3000; // 3 seconds
+        await Promise.race([
+          getProduct(),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("getProduct timeout")), timeoutMs)
+          ),
+        ]).catch((err) => {
+          // swallow timeout or other errors here (we'll log below)
+          throw err;
+        });
+      } catch (err) {
+        // don't block login, but log the error
+        console.error("Error preloading products after login:", err);
+      }
+
       roleRedirect(role);
       // toast.success("ยินดีต้อนรับเข้าสู่ระบบ!");
     } catch (err) {
