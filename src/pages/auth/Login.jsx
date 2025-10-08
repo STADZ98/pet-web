@@ -29,7 +29,14 @@ const Login = () => {
     setLoading(true);
     try {
       const res = await actionLogin(form);
-      const role = res.data.payload.role;
+      // actionLogin may return normalized { payload, token, profile, raw }
+      // or legacy axios response. Try a few fallbacks to extract role.
+      const role =
+        res?.payload?.role ||
+        res?.raw?.data?.payload?.role ||
+        res?.data?.payload?.role;
+      // for debugging, you can uncomment the next line
+      // console.debug('login result', res, 'role', role);
       // Prefetch Home product lists (bestSeller, newProduct) so Home can render immediately
       let bestSeller = null;
       let newProduct = null;

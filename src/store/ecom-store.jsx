@@ -5,7 +5,8 @@ import { listCategory } from "../api/category";
 import { listProductBy, searchFilters } from "../api/product";
 import { listBrand } from "../api/brand";
 
-const API = import.meta.env.VITE_API || "https://server-api-newgen.vercel.app/api";
+const API =
+  import.meta.env.VITE_API || "https://server-api-newgen.vercel.app/api";
 
 // 🎯 initial state
 const initialState = {
@@ -48,7 +49,8 @@ const ecomStore = (set, get) => ({
       const profile = res.data.profile || payload; // ใช้ profile จาก backend
 
       set({ user: payload, token, profile });
-      return res;
+      // Return a normalized result for callers to consume reliably
+      return { raw: res, payload, token, profile };
     } catch (err) {
       console.error("Login error:", err);
       throw err;
@@ -296,7 +298,7 @@ const usePersist = {
       images: item.images,
     })),
     filters: state.filters,
-  })
+  }),
 };
 
 const useEcomStore = create(persist(ecomStore, usePersist));
