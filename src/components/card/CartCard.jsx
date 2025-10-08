@@ -45,12 +45,16 @@ const CartCard = () => {
               {carts.map((item, index) => {
                 const imgCandidate =
                   item.images && item.images.length > 0 ? item.images[0] : null;
+                const NO_IMAGE_DATA_URL = `data:image/svg+xml;utf8,${encodeURIComponent(
+                  `<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'><rect width='100%' height='100%' fill='%23f3f4f6'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%239ca3af' font-family='Arial, Helvetica, sans-serif' font-size='12'>No image</text></svg>`
+                )}`;
+
                 const imgSrc =
                   typeof imgCandidate === "string"
                     ? imgCandidate
                     : imgCandidate?.url ||
                       imgCandidate?.secure_url ||
-                      "/no-image.png";
+                      NO_IMAGE_DATA_URL;
 
                 // Fallbacks for description and variant title (some carts store minimal fields and keep full product)
                 const variantLabel =
@@ -74,7 +78,7 @@ const CartCard = () => {
                           className="w-full h-full object-cover"
                           onError={(e) => {
                             e.target.onerror = null;
-                            e.target.src = "/no-image.png";
+                            e.target.src = NO_IMAGE_DATA_URL;
                           }}
                         />
                       ) : (

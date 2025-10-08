@@ -8,7 +8,11 @@ import { numberFormat } from "../../utils/number";
 import PropTypes from "prop-types";
 import { createPortal } from "react-dom";
 
-const FALLBACK_IMAGE = "https://server-api-newgenz.vercel.app/no-image.png";
+// Inline light SVG fallback (avoids network request and dark/black placeholder)
+const FALLBACK_IMAGE = `data:image/svg+xml;utf8,${encodeURIComponent(
+  `<svg xmlns='http://www.w3.org/2000/svg' width='280' height='180' viewBox='0 0 280 180'><rect width='100%' height='100%' fill='%23f3f4f6'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%239ca3af' font-family='Arial, Helvetica, sans-serif' font-size='14'>No image</text></svg>`
+)}
+`;
 
 // แปลง URL รูปให้เป็น HTTPS
 const secureImageUrl = (url) => {
@@ -23,7 +27,6 @@ const QuickViewModal = ({ item, onClose, onAddToCart }) => {
   const closeBtnRef = useRef(null);
   const triggerRef = useRef(null);
   const actionAddtoCart = useEcomStore((state) => state.actionAddtoCart);
-  const navigate = useNavigate();
 
   useEffect(() => {
     const onKey = (e) => {
@@ -37,7 +40,9 @@ const QuickViewModal = ({ item, onClose, onAddToCart }) => {
       window.removeEventListener("keydown", onKey);
       try {
         triggerRef.current?.focus?.();
-      } catch {}
+      } catch {
+        // ignore focus restore errors
+      }
     };
   }, [onClose]);
 

@@ -17,6 +17,11 @@ import {
 } from "lucide-react";
 import { toast, Toaster } from "react-hot-toast"; // เพิ่ม Toaster และ toast สำหรับการแจ้งเตือน
 
+// Inline no-image fallback (light SVG) to avoid external /no-image.png and dark placeholder
+const NO_IMAGE_DATA_URL = `data:image/svg+xml;utf8,${encodeURIComponent(
+  `<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'><rect width='100%' height='100%' fill='%23f3f4f6'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%239ca3af' font-family='Arial, Helvetica, sans-serif' font-size='12'>No image</text></svg>`
+)}`;
+
 // Component สำหรับแสดง Rating Star
 const RatingStars = ({ rating }) => {
   const stars = [];
@@ -383,7 +388,10 @@ const ProductDetail = () => {
       .map(normalizeImageUrl)
       .filter(Boolean);
     if (prodImgs.length) return prodImgs;
-    return ["/no-image.png"];
+    const NO_IMAGE_DATA_URL = `data:image/svg+xml;utf8,${encodeURIComponent(
+      `<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'><rect width='100%' height='100%' fill='%23f3f4f6'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%239ca3af' font-family='Arial, Helvetica, sans-serif' font-size='12'>No image</text></svg>`
+    )}`;
+    return [NO_IMAGE_DATA_URL];
   }, [product, selectedVariant, mergeProductVariantImages, normalizeImageUrl]);
 
   // Ensure imgIndex is valid whenever images change
@@ -576,12 +584,14 @@ const ProductDetail = () => {
                   className="w-full h-full flex items-center justify-center"
                 >
                   <img
-                    src={normalizeImageUrl(images[imgIndex]) || "/no-image.png"}
+                    src={
+                      normalizeImageUrl(images[imgIndex]) || NO_IMAGE_DATA_URL
+                    }
                     loading="lazy"
                     alt={`${product.title} - รูปที่ ${imgIndex + 1}`}
                     onError={(e) => {
                       e.target.onerror = null;
-                      e.target.src = "/no-image.png";
+                      e.target.src = NO_IMAGE_DATA_URL;
                     }}
                     className="max-h-full max-w-full object-contain transition-transform duration-300 ease-in-out transform hover:scale-105 cursor-zoom-in"
                   />
@@ -627,11 +637,11 @@ const ProductDetail = () => {
               >
                 <img
                   src={
-                    normalizeImageUrl(product.images?.[0]) || "/no-image.png"
+                    normalizeImageUrl(product.images?.[0]) || NO_IMAGE_DATA_URL
                   }
                   alt="สินค้าหลัก"
                   className="object-cover w-full h-full rounded-md hover:scale-105 transition-transform"
-                  onError={(e) => (e.target.src = "/no-image.png")}
+                  onError={(e) => (e.target.src = NO_IMAGE_DATA_URL)}
                 />
               </button>
             )}
@@ -658,10 +668,12 @@ const ProductDetail = () => {
                     aria-pressed={String(selectedVariantId) === String(v.id)}
                   >
                     <img
-                      src={normalizeImageUrl(v.images?.[0]) || "/no-image.png"}
+                      src={
+                        normalizeImageUrl(v.images?.[0]) || NO_IMAGE_DATA_URL
+                      }
                       alt={v.title || v.sku || `สินค้าย่อย ${idx + 1}`}
                       className="object-cover w-full h-full rounded-md hover:scale-105 transition-transform"
-                      onError={(e) => (e.target.src = "/no-image.png")}
+                      onError={(e) => (e.target.src = NO_IMAGE_DATA_URL)}
                     />
                   </button>
                 ) : null
@@ -696,7 +708,7 @@ const ProductDetail = () => {
                   src={
                     normalizeImageUrl(
                       images[(lightboxIndex + images.length) % images.length]
-                    ) || "/no-image.png"
+                    ) || NO_IMAGE_DATA_URL
                   }
                   loading="lazy"
                   alt={`${product.title} - ขยายรูปที่ ${
@@ -801,13 +813,13 @@ const ProductDetail = () => {
                       src={
                         normalizeImageUrl(v.images?.[0]) ||
                         normalizeImageUrl(product.images?.[0]) ||
-                        "/no-image.png"
+                        NO_IMAGE_DATA_URL
                       }
                       alt={v.title || v.sku}
                       className="w-16 h-16 object-cover rounded-md"
                       onError={(e) => {
                         e.target.onerror = null;
-                        e.target.src = "/no-image.png";
+                        e.target.src = NO_IMAGE_DATA_URL;
                       }}
                     />
                     <div className="flex-1 min-w-0">
