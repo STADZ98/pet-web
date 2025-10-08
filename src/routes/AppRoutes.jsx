@@ -65,23 +65,26 @@ const router = createBrowserRouter([
   {
     path: "/",
     element: <Layout />,
-    // loader to prefetch important product lists for the home page
-    loader: async () => {
-      try {
-        const bestRes = await listProductBy("sold", "desc", 4);
-        const newRes = await listProductBy("updatedAt", "desc", 3);
-        return {
-          bestSeller: bestRes?.data || [],
-          newProduct: newRes?.data || [],
-        };
-      } catch (err) {
-        console.error("Home loader failed to fetch product lists:", err);
-        // return nulls so the page components can fallback to their own fetching
-        return { bestSeller: null, newProduct: null };
-      }
-    },
     children: [
-      { index: true, element: <Home /> },
+      {
+        index: true,
+        element: <Home />,
+        // loader to prefetch important product lists for the home page
+        loader: async () => {
+          try {
+            const bestRes = await listProductBy("sold", "desc", 4);
+            const newRes = await listProductBy("updatedAt", "desc", 3);
+            return {
+              bestSeller: bestRes?.data || [],
+              newProduct: newRes?.data || [],
+            };
+          } catch (err) {
+            console.error("Home loader failed to fetch product lists:", err);
+            // return nulls so the page components can fallback to their own fetching
+            return { bestSeller: null, newProduct: null };
+          }
+        },
+      },
       { path: "shop", element: <Shop /> },
       { path: "cart", element: <Cart /> },
       { path: "checkout", element: <Checkout /> },

@@ -71,10 +71,44 @@ export const searchFilters = async (arg) => {
   return axios.post(`${API}/search/filters`, arg);
 };
 
-export const listProductBy = async (token, sort, order, limit) => {
+export const listProductBy = async (
+  tokenOrSort,
+  sortOrOrder,
+  orderOrLimit,
+  limit
+) => {
+  // Backwards-compatible wrapper: callers sometimes pass (sort, order, limit)
+  // and sometimes (token, sort, order, limit). Detect the usage pattern.
+  let token = undefined;
+  let sort = sortOrOrder;
+  let order = orderOrLimit;
+  let lim = limit;
+
+  // If the first argument looks like a sort key (string) and the second
+  // argument is 'asc' or 'desc' (or the third arg is a number), assume
+  // the caller used (sort, order, limit).
+  const maybeSort = tokenOrSort;
+  if (
+    typeof maybeSort === "string" &&
+    (sortOrOrder === "asc" ||
+      sortOrOrder === "desc" ||
+      typeof orderOrLimit === "number")
+  ) {
+    sort = maybeSort;
+    order = sortOrOrder;
+    lim = orderOrLimit;
+    token = undefined;
+  } else {
+    // caller used (token, sort, order, limit)
+    token = tokenOrSort;
+    sort = sortOrOrder;
+    order = orderOrLimit;
+    lim = limit;
+  }
+
   return axios.post(
     `${API}/productby`,
-    { sort, order, limit },
+    { sort, order, limit: lim },
     token
       ? {
           headers: {

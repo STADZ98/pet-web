@@ -109,13 +109,18 @@ const useProductData = ({
   initialBestSeller = null,
   initialNewProduct = null,
 } = {}) => {
-  const [bestSeller, setBestSeller] = useState(initialBestSeller ?? []);
-  const [loadingBestSeller, setLoadingBestSeller] = useState(
-    initialBestSeller == null
+  const [bestSeller, setBestSeller] = useState(
+    Array.isArray(initialBestSeller) ? initialBestSeller : []
   );
-  const [newProduct, setNewProduct] = useState(initialNewProduct ?? []);
+  // Only treat as already-loaded when loader provided a non-empty array
+  const [loadingBestSeller, setLoadingBestSeller] = useState(
+    !(Array.isArray(initialBestSeller) && initialBestSeller.length > 0)
+  );
+  const [newProduct, setNewProduct] = useState(
+    Array.isArray(initialNewProduct) ? initialNewProduct : []
+  );
   const [loadingNewProduct, setLoadingNewProduct] = useState(
-    initialNewProduct == null
+    !(Array.isArray(initialNewProduct) && initialNewProduct.length > 0)
   );
 
   // Global stores
@@ -128,7 +133,9 @@ const useProductData = ({
 
   // Load best sellers (skip if provided by initial data)
   useEffect(() => {
-    if (initialBestSeller != null) return undefined;
+    // skip fetch only when loader gave a non-empty array
+    if (Array.isArray(initialBestSeller) && initialBestSeller.length > 0)
+      return undefined;
     let ignore = false;
     (async () => {
       try {
@@ -148,7 +155,9 @@ const useProductData = ({
 
   // Load new products (by update time) (skip if provided by initial data)
   useEffect(() => {
-    if (initialNewProduct != null) return undefined;
+    // skip fetch only when loader gave a non-empty array
+    if (Array.isArray(initialNewProduct) && initialNewProduct.length > 0)
+      return undefined;
     let ignore = false;
     (async () => {
       try {

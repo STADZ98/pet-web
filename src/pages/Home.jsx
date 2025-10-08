@@ -8,7 +8,7 @@ import BestSeller from "../components/home/BestSeller";
 
 const Home = () => {
   const loaderData = useLoaderData?.() || {};
-  const { bestSeller = [], newProduct = [] } = loaderData;
+  const { bestSeller = null, newProduct = null } = loaderData;
 
   return (
     <div>
