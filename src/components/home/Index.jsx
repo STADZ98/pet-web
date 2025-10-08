@@ -21,7 +21,8 @@ import ProductTabs from "./ProductTabs";
 import SwiperShowProduct from "../../utils/SwiperShowProduct";
 import CartCard from "../card/CartCard";
 import FullPageSpinner from "../ui/FullPageSpinner";
-import { useRef } from "react";
+// ...existing imports
+import { startTabLoader, stopTabLoader } from "../../utils/tabLoader";
 
 // -----------------------------------------------------------------------------
 // Constants (dummy content that you can later source from CMS)
@@ -1052,47 +1053,15 @@ const Index = ({ initialBestSeller = null, initialNewProduct = null }) => {
     brands,
   } = useProductData({ initialBestSeller, initialNewProduct });
 
-  // Tab title spinner while loading
-  const originalTitleRef = useRef(
-    typeof document !== "undefined" ? document.title : ""
-  );
+  // Tab title + favicon loader while loading
   useEffect(() => {
     if (typeof document === "undefined") return;
-    const frames = ["◐", "◓", "◑", "◒"];
-    let idx = 0;
-    let tid = null;
-
-    const start = () => {
-      if (tid) return;
-      tid = setInterval(() => {
-        document.title = `${frames[idx % frames.length]} ${
-          originalTitleRef.current
-        }`;
-        idx += 1;
-      }, 200);
-    };
-
-    const stop = () => {
-      if (tid) {
-        clearInterval(tid);
-        tid = null;
-      }
-      // restore original title
-      document.title = originalTitleRef.current;
-    };
-
     if (loadingBestSeller || loadingNewProduct) {
-      // capture current title (only first time)
-      if (!originalTitleRef.current) originalTitleRef.current = document.title;
-      start();
+      startTabLoader({ titlePrefix: "กำลังโหลด" });
     } else {
-      stop();
+      stopTabLoader();
     }
-
-    return () => {
-      if (tid) clearInterval(tid);
-      document.title = originalTitleRef.current;
-    };
+    return () => stopTabLoader();
   }, [loadingBestSeller, loadingNewProduct]);
 
   return (
