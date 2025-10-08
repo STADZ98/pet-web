@@ -20,6 +20,7 @@ import { listProductBy } from "../../api/product";
 import ProductTabs from "./ProductTabs";
 import SwiperShowProduct from "../../utils/SwiperShowProduct";
 import CartCard from "../card/CartCard";
+import FullPageSpinner from "../ui/FullPageSpinner";
 
 // -----------------------------------------------------------------------------
 // Constants (dummy content that you can later source from CMS)
@@ -1052,6 +1053,9 @@ const Index = ({ initialBestSeller = null, initialNewProduct = null }) => {
 
   return (
     <div className="bg-gray-50 min-h-screen relative">
+      {(loadingBestSeller || loadingNewProduct) && (
+        <FullPageSpinner message={"กำลังโหลดสินค้า โปรดรอสักครู่..."} />
+      )}
       {/* Hero */}
       <HeroCarousel images={CAROUSEL_IMAGES} />
 
