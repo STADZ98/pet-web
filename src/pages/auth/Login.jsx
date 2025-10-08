@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { toast } from "react-toastify";
 import useEcomStore from "../../store/ecom-store";
 import { useNavigate, Link } from "react-router-dom";
+import { listProductBy } from "../../api/product";
 import { FiMail, FiLock } from "react-icons/fi";
 
 const Login = () => {
@@ -29,26 +30,37 @@ const Login = () => {
     try {
       const res = await actionLogin(form);
       const role = res.data.payload.role;
-      // Ensure product list is loaded before redirecting so the UI has data ready
+      // Prefetch Home product lists (bestSeller, newProduct) so Home can render immediately
+      let bestSeller = null;
+      let newProduct = null;
       try {
-        // call getProduct and wait for it to finish; use token from store if needed
-        // but don't block forever: if it takes too long, proceed after timeout
-        const timeoutMs = 3000; // 3 seconds
-        await Promise.race([
-          getProduct(),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("getProduct timeout")), timeoutMs)
-          ),
-        ]).catch((err) => {
-          // swallow timeout or other errors here (we'll log below)
-          throw err;
-        });
-      } catch (err) {
-        // don't block login, but log the error
-        console.error("Error preloading products after login:", err);
+        const results = await Promise.allSettled([
+          listProductBy("sold", "desc", 4),
+          listProductBy("updatedAt", "desc", 3),
+        ]);
+        if (results[0].status === "fulfilled") {
+          bestSeller = results[0].value?.data || null;
+        }
+        if (results[1].status === "fulfilled") {
+          newProduct = results[1].value?.data || null;
+        }
+      } catch (preErr) {
+        console.error("Prefetch home products failed:", preErr);
       }
 
-      roleRedirect(role);
+      // Trigger background product hydration (non-blocking)
+      try {
+        getProduct?.();
+      } catch (e) {
+        console.warn("getProduct background failed:", e);
+      }
+
+      // Navigate to home and pass prefetched data via location.state
+      if (role === "admin") {
+        navigate("/admin", { replace: true });
+      } else {
+        navigate("/", { replace: true, state: { bestSeller, newProduct } });
+      }
       // toast.success("ยินดีต้อนรับเข้าสู่ระบบ!");
     } catch (err) {
       const errMsg =
@@ -56,14 +68,6 @@ const Login = () => {
       toast.error(errMsg);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const roleRedirect = (role) => {
-    if (role === "admin") {
-      navigate("/admin", { replace: true });
-    } else {
-      navigate("/", { replace: true });
     }
   };
 
