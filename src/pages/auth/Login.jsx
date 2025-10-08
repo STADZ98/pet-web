@@ -170,14 +170,14 @@ const Login = () => {
           </div>
 
           {/* Forgot Password */}
-          <div className="text-right text-sm">
+          {/* <div className="text-right text-sm">
             <a
               href="#"
               className="text-blue-500 hover:underline hover:text-blue-700 transition"
             >
               ลืมรหัสผ่าน?
             </a>
-          </div>
+          </div> */}
 
           {/* Submit Button */}
           <button
