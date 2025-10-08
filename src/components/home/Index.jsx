@@ -105,11 +105,18 @@ const ARTICLES = [
 // -----------------------------------------------------------------------------
 // Data Hook (fetch + global store hydration)
 // -----------------------------------------------------------------------------
-const useProductData = () => {
-  const [bestSeller, setBestSeller] = useState([]);
-  const [loadingBestSeller, setLoadingBestSeller] = useState(true);
-  const [newProduct, setNewProduct] = useState([]);
-  const [loadingNewProduct, setLoadingNewProduct] = useState(true);
+const useProductData = ({
+  initialBestSeller = null,
+  initialNewProduct = null,
+} = {}) => {
+  const [bestSeller, setBestSeller] = useState(initialBestSeller ?? []);
+  const [loadingBestSeller, setLoadingBestSeller] = useState(
+    initialBestSeller == null
+  );
+  const [newProduct, setNewProduct] = useState(initialNewProduct ?? []);
+  const [loadingNewProduct, setLoadingNewProduct] = useState(
+    initialNewProduct == null
+  );
 
   // Global stores
   const categories = useEcomStore((s) => s.categories || []);
@@ -119,8 +126,9 @@ const useProductData = () => {
   const getSubcategories = useEcomStore((s) => s.getSubcategories);
   const getBrands = useEcomStore((s) => s.getBrands);
 
-  // Load best sellers
+  // Load best sellers (skip if provided by initial data)
   useEffect(() => {
+    if (initialBestSeller != null) return undefined;
     let ignore = false;
     (async () => {
       try {
@@ -136,10 +144,11 @@ const useProductData = () => {
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [initialBestSeller]);
 
-  // Load new products (by update time)
+  // Load new products (by update time) (skip if provided by initial data)
   useEffect(() => {
+    if (initialNewProduct != null) return undefined;
     let ignore = false;
     (async () => {
       try {
@@ -155,7 +164,7 @@ const useProductData = () => {
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [initialNewProduct]);
 
   // Hydrate taxonomy lists
   useEffect(() => {
@@ -1019,7 +1028,7 @@ const CartOverlay = ({ open, onClose }) => (
 // -----------------------------------------------------------------------------
 // Page
 // -----------------------------------------------------------------------------
-const Index = () => {
+const Index = ({ initialBestSeller = null, initialNewProduct = null }) => {
   const [isCartOpen, setIsCartOpen] = useState(false);
 
   const {
@@ -1030,7 +1039,7 @@ const Index = () => {
     categories,
     subcategories,
     brands,
-  } = useProductData();
+  } = useProductData({ initialBestSeller, initialNewProduct });
 
   return (
     <div className="bg-gray-50 min-h-screen relative">
