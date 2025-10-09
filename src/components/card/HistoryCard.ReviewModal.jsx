@@ -85,8 +85,14 @@ const ReviewModal = ({
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
-      let arr = Array.isArray(data) ? data : data.reviews || [];
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        console.debug("Failed fetching reviews:", res.status, txt);
+        setReviews([]);
+        return;
+      }
+      const json = await res.json().catch(() => null);
+      let arr = Array.isArray(json) ? json : (json && json.reviews) || [];
 
       if (userId) {
         arr = arr.filter((r) => {
@@ -214,8 +220,11 @@ const ReviewModal = ({
         },
         body: JSON.stringify(body),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to submit review");
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(txt || "Failed to submit review");
+      }
+      await res.json().catch(() => null);
       setLoading(false);
 
       const pid = String(getProductId(product));
@@ -247,8 +256,11 @@ const ReviewModal = ({
         },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to edit review");
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(txt || "Failed to edit review");
+      }
+      await res.json().catch(() => null);
       setLoading(false);
 
       const pid = String(getProductId(product));
@@ -278,8 +290,8 @@ const ReviewModal = ({
         onReviewDeleted?.(String(getProductId(product)), currentVarId);
         fetchReviews();
       } else {
-        const errorData = await res.json();
-        toast.error(errorData.message || "เกิดข้อผิดพลาดในการลบรีวิว");
+        const txt = await res.text().catch(() => "");
+        toast.error(txt || "เกิดข้อผิดพลาดในการลบรีวิว");
       }
     } catch (err) {
       console.debug(err);

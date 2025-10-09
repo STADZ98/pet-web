@@ -304,18 +304,27 @@ const ProductDetail = () => {
   }, [id, cartItem]);
 
   // update reviews when product changes
-  const fetchReviews = useCallback(() => {
+  const fetchReviews = useCallback(async () => {
     if (!product?.id) return;
     setLoadingReviews(true);
-    const prodId = parseInt(product.id, 10);
-    const API = import.meta.env.VITE_API || "/api";
-    fetch(`${API}/review/${prodId}`)
-      .then((res) => res.json())
-      .then((data) => {
-        setReviews(data.reviews || []);
-      })
-      .catch(() => setReviews([]))
-      .finally(() => setLoadingReviews(false));
+    try {
+      const prodId = parseInt(product.id, 10);
+      const API = import.meta.env.VITE_API || "/api";
+      const res = await fetch(`${API}/review/${prodId}`);
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        console.error("Failed fetching reviews:", res.status, txt);
+        setReviews([]);
+        return;
+      }
+      const data = await res.json().catch(() => null);
+      setReviews((data && (data.reviews || data)) || []);
+    } catch (err) {
+      console.error("Error fetching reviews:", err);
+      setReviews([]);
+    } finally {
+      setLoadingReviews(false);
+    }
   }, [product?.id]);
 
   useEffect(() => {
@@ -360,7 +369,10 @@ const ProductDetail = () => {
   const API = import.meta.env.VITE_API || "/api";
 
   const startReplyEdit = (reviewId, existingReply = "") => {
-    setReplyStates((s) => ({ ...s, [reviewId]: { editing: true, text: existingReply } }));
+    setReplyStates((s) => ({
+      ...s,
+      [reviewId]: { editing: true, text: existingReply },
+    }));
   };
 
   const cancelReplyEdit = (reviewId) => {
@@ -368,7 +380,10 @@ const ProductDetail = () => {
   };
 
   const handleReplyChange = (reviewId, text) => {
-    setReplyStates((s) => ({ ...s, [reviewId]: { ...(s[reviewId] || {}), text } }));
+    setReplyStates((s) => ({
+      ...s,
+      [reviewId]: { ...(s[reviewId] || {}), text },
+    }));
   };
 
   const handleReplySubmit = async (reviewId) => {
@@ -376,7 +391,11 @@ const ProductDetail = () => {
       const state = replyStates[reviewId] || {};
       const text = (state.text || "").trim();
       if (!text) return alert("โปรดใส่ข้อความตอบกลับ");
-      const method = filteredReviews.find((r) => String(r.id || r._id) === String(reviewId))?.reply ? "PATCH" : "POST";
+      const method = filteredReviews.find(
+        (r) => String(r.id || r._id) === String(reviewId)
+      )?.reply
+        ? "PATCH"
+        : "POST";
       const res = await fetch(`${API}/review/${String(reviewId)}/reply`, {
         method,
         headers: {
@@ -386,7 +405,8 @@ const ProductDetail = () => {
         body: JSON.stringify({ reply: text }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || data.message || "Failed to submit reply");
+      if (!res.ok)
+        throw new Error(data.error || data.message || "Failed to submit reply");
       // update local reviews list by refetching
       fetchReviews();
       cancelReplyEdit(reviewId);
@@ -407,7 +427,8 @@ const ProductDetail = () => {
         },
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || data.message || "Failed to delete reply");
+      if (!res.ok)
+        throw new Error(data.error || data.message || "Failed to delete reply");
       fetchReviews();
       toast.success("ลบการตอบกลับแล้ว");
     } catch (err) {
@@ -1205,9 +1226,17 @@ const ProductDetail = () => {
                             <div className="mt-3">
                               {r.reply ? (
                                 <div className="bg-gray-50 border-l-4 border-orange-300 p-3 rounded">
-                                  <div className="text-sm text-gray-700 whitespace-pre-line">{r.reply}</div>
+                                  <div className="text-sm text-gray-700 whitespace-pre-line">
+                                    {r.reply}
+                                  </div>
                                   <div className="text-xs text-gray-400 mt-2">
-                                    ตอบโดย: {r.replyBy?.email || "ผู้ดูแลระบบ"} • {r.repliedAt ? new Date(r.repliedAt).toLocaleString("th-TH") : ""}
+                                    ตอบโดย: {r.replyBy?.email || "ผู้ดูแลระบบ"}{" "}
+                                    •{" "}
+                                    {r.repliedAt
+                                      ? new Date(r.repliedAt).toLocaleString(
+                                          "th-TH"
+                                        )
+                                      : ""}
                                   </div>
                                 </div>
                               ) : null}
@@ -1215,29 +1244,51 @@ const ProductDetail = () => {
                               {/* Admin controls */}
                               {user?.role === "admin" && (
                                 <div className="mt-2 flex items-start gap-2">
-                                  {replyStates[rid] && replyStates[rid].editing ? (
+                                  {replyStates[rid] &&
+                                  replyStates[rid].editing ? (
                                     <div className="flex-1">
                                       <textarea
                                         value={replyStates[rid].text}
-                                        onChange={(e) => handleReplyChange(rid, e.target.value)}
+                                        onChange={(e) =>
+                                          handleReplyChange(rid, e.target.value)
+                                        }
                                         className="w-full border rounded px-3 py-2 text-sm"
                                         rows={3}
                                       />
                                       <div className="flex gap-2 justify-end mt-2">
-                                        <button onClick={() => cancelReplyEdit(rid)} className="px-3 py-1 bg-gray-100 rounded text-sm">ยกเลิก</button>
-                                        <button onClick={() => handleReplySubmit(rid)} className="px-3 py-1 bg-orange-600 text-white rounded text-sm">บันทึก</button>
+                                        <button
+                                          onClick={() => cancelReplyEdit(rid)}
+                                          className="px-3 py-1 bg-gray-100 rounded text-sm"
+                                        >
+                                          ยกเลิก
+                                        </button>
+                                        <button
+                                          onClick={() => handleReplySubmit(rid)}
+                                          className="px-3 py-1 bg-orange-600 text-white rounded text-sm"
+                                        >
+                                          บันทึก
+                                        </button>
                                       </div>
                                     </div>
                                   ) : (
                                     <>
                                       <button
-                                        onClick={() => startReplyEdit(rid, r.reply || "")}
+                                        onClick={() =>
+                                          startReplyEdit(rid, r.reply || "")
+                                        }
                                         className="px-3 py-1 bg-white border rounded text-sm"
                                       >
-                                        {r.reply ? "แก้ไขการตอบกลับ" : "ตอบกลับ"}
+                                        {r.reply
+                                          ? "แก้ไขการตอบกลับ"
+                                          : "ตอบกลับ"}
                                       </button>
                                       {r.reply && (
-                                        <button onClick={() => handleReplyDelete(rid)} className="px-3 py-1 bg-red-100 text-red-600 rounded text-sm">ลบการตอบกลับ</button>
+                                        <button
+                                          onClick={() => handleReplyDelete(rid)}
+                                          className="px-3 py-1 bg-red-100 text-red-600 rounded text-sm"
+                                        >
+                                          ลบการตอบกลับ
+                                        </button>
                                       )}
                                     </>
                                   )}
