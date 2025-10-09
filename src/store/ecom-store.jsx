@@ -49,8 +49,7 @@ const ecomStore = (set, get) => ({
       const profile = res.data.profile || payload; // ใช้ profile จาก backend
 
       set({ user: payload, token, profile });
-      // Return a normalized result for callers to consume reliably
-      return { raw: res, payload, token, profile };
+      return res;
     } catch (err) {
       console.error("Login error:", err);
       throw err;
