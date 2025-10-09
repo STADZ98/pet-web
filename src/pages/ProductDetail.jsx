@@ -58,6 +58,39 @@ const RatingStars = ({ rating }) => {
   return <div className="flex items-center gap-1">{stars}</div>;
 };
 
+// Reviewer avatar: show image if available, otherwise initials
+const ReviewerAvatar = ({ author, avatarUrl, size = 40 }) => {
+  const initials = String(author || "ผู้ใช้")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((s) => s[0])
+    .join("")
+    .toUpperCase();
+
+  return (
+    <div
+      className="rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-semibold overflow-hidden"
+      style={{ width: size, height: size }}
+      aria-hidden="true"
+    >
+      {avatarUrl ? (
+        <img
+          src={avatarUrl}
+          alt={String(author || "ผู้ใช้")}
+          className="w-full h-full object-cover"
+          onError={(e) => {
+            e.target.onerror = null;
+            e.target.src = NO_IMAGE_DATA_URL;
+          }}
+        />
+      ) : (
+        <span>{initials}</span>
+      )}
+    </div>
+  );
+};
+
 // Component สำหรับแสดงสินค้าที่เกี่ยวข้อง
 const RelatedProducts = ({ products, onProductClick }) => {
   return (
@@ -1186,10 +1219,18 @@ const ProductDetail = () => {
                       className="bg-white rounded-lg shadow p-4 border border-gray-200"
                     >
                       <div className="flex items-start gap-3">
-                        {/* avatar with initials */}
-                        <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-semibold">
-                          {String(author).slice(0, 2).toUpperCase()}
-                        </div>
+                        {/* avatar */}
+                        <ReviewerAvatar
+                          author={author}
+                          avatarUrl={
+                            r.user?.avatar ||
+                            r.address?.avatar ||
+                            r.avatar ||
+                            (r.user && r.user.profileImage) ||
+                            null
+                          }
+                          size={40}
+                        />
 
                         <div className="flex-1">
                           <div className="flex items-center gap-3">
