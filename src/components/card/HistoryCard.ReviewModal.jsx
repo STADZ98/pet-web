@@ -69,7 +69,7 @@ const ReviewModal = ({
     }
     const max = 2 * 1024 * 1024; // 2MB
     if (file.size > max) {
-      return { ok: false, msg: "ขนาดไฟล์ต้องไม่เกิน 2MB" };
+      return { ok: false, msg: "ขนาดไฟล์ต้องไม่เกิน2MB" };
     }
     return { ok: true };
   };
