@@ -55,10 +55,11 @@ const ReviewModal = ({
     rating: 5,
     comment: "",
   });
-  const [newImageFile, setNewImageFile] = useState(null);
-  const [newImagePreview, setNewImagePreview] = useState(null);
-  const [editImageFile, setEditImageFile] = useState(null);
-  const [editImagePreview, setEditImagePreview] = useState(null);
+  const [newImageFiles, setNewImageFiles] = useState([]);
+  const [newImagePreviews, setNewImagePreviews] = useState([]);
+  const [editImageFiles, setEditImageFiles] = useState([]);
+  const [editImagePreviews, setEditImagePreviews] = useState([]); // can contain URLs or blob: urls
+  const [editDeletedImageIds, setEditDeletedImageIds] = useState([]);
 
   // Validate image file (type and size)
   const validateImageFile = (file) => {
@@ -146,10 +147,18 @@ const ReviewModal = ({
           rating: arr[0].rating || 5,
           comment: arr[0].comment || "",
         });
-        // Preload existing image (if review includes image url)
+        // Preload existing images (if review includes images relation)
         const first = arr[0];
-        const imgUrl = first.image || first.imageUrl || first.image_url || null;
-        if (imgUrl) setEditImagePreview(imgUrl);
+        if (Array.isArray(first.images) && first.images.length > 0) {
+          const objs = first.images.map((img) => ({
+            id: img.id,
+            url: `${API}/review/image/${img.id}`,
+            isBlob: false,
+          }));
+          setEditImagePreviews(objs);
+        } else {
+          setEditImagePreviews([]);
+        }
       }
     } catch (err) {
       console.debug(err);
@@ -167,12 +176,15 @@ const ReviewModal = ({
   // Cleanup object URLs when files change/unmount
   useEffect(() => {
     return () => {
-      if (newImagePreview && newImagePreview.startsWith("blob:"))
-        URL.revokeObjectURL(newImagePreview);
-      if (editImagePreview && editImagePreview.startsWith("blob:"))
-        URL.revokeObjectURL(editImagePreview);
+      newImagePreviews.forEach((p) => {
+        if (p && p.startsWith && p.startsWith("blob:")) URL.revokeObjectURL(p);
+      });
+      editImagePreviews.forEach((p) => {
+        if (p && p.url && p.url.startsWith && p.url.startsWith("blob:"))
+          URL.revokeObjectURL(p.url);
+      });
     };
-  }, [newImagePreview, editImagePreview]);
+  }, [newImagePreviews, editImagePreviews]);
 
   const currentPid = useMemo(
     () => String(getProductId(product) || ""),
@@ -237,14 +249,14 @@ const ReviewModal = ({
       const variantId = getVariantId(product);
       // If there's an image file, send multipart/form-data
       let res;
-      if (newImageFile) {
+      if (newImageFiles && newImageFiles.length > 0) {
         const fd = new FormData();
         fd.append("productId", getProductId(product));
         fd.append("rating", String(newReview.rating));
         fd.append("comment", newReview.comment);
         if (variantId) fd.append("variantId", String(variantId));
         if (reviewOrderId) fd.append("orderId", String(reviewOrderId));
-        fd.append("image", newImageFile);
+        newImageFiles.forEach((f) => fd.append("images", f));
 
         res = await fetch(`${API}/review`, {
           method: "POST",
@@ -297,11 +309,19 @@ const ReviewModal = ({
       setLoading(true);
       let res;
       // If replacing/adding image, use FormData
-      if (editImageFile) {
+      if (
+        (editImageFiles && editImageFiles.length > 0) ||
+        editDeletedImageIds.length > 0
+      ) {
         const fd = new FormData();
         fd.append("rating", String(editReview.rating));
         fd.append("comment", editReview.comment);
-        fd.append("image", editImageFile);
+        // attach files
+        editImageFiles.forEach((f) => fd.append("images", f));
+        // send deleteImageIds as repeated fields
+        editDeletedImageIds.forEach((id) =>
+          fd.append("deleteImageIds", String(id))
+        );
         res = await fetch(`${API}/review/${editReview.id}`, {
           method: "PATCH",
           headers: {
@@ -336,8 +356,9 @@ const ReviewModal = ({
       onReviewSubmitted?.(pid, ts, vid);
 
       setEditReview({ id: null, rating: 5, comment: "" });
-      setEditImageFile(null);
-      setEditImagePreview(null);
+      setEditImageFiles([]);
+      setEditImagePreviews([]);
+      setEditDeletedImageIds([]);
       fetchReviews();
     } catch (err) {
       setLoading(false);
@@ -500,14 +521,17 @@ const ReviewModal = ({
                                       rating: r.rating,
                                       comment: r.comment,
                                     });
-                                    // preload existing image into edit preview if available
-                                    const imgUrl =
-                                      r.image ||
-                                      r.imageUrl ||
-                                      r.image_url ||
-                                      null;
-                                    setEditImageFile(null);
-                                    setEditImagePreview(imgUrl);
+                                    // preload existing images into edit previews if available
+                                    const imgs = Array.isArray(r.images)
+                                      ? r.images.map((img) => ({
+                                          id: img.id,
+                                          url: `${API}/review/image/${img.id}`,
+                                          isBlob: false,
+                                        }))
+                                      : [];
+                                    setEditImageFiles([]);
+                                    setEditImagePreviews(imgs);
+                                    setEditDeletedImageIds([]);
                                     setTimeout(
                                       () => textareaRef.current?.focus(),
                                       50
@@ -531,37 +555,49 @@ const ReviewModal = ({
                                     <label className="block text-xs font-medium text-gray-700 mb-1">
                                       รูปภาพรีวิว (ถ้ามี)
                                     </label>
-                                    <div className="flex items-center gap-3">
-                                      {editImagePreview ? (
-                                        <div className="relative">
-                                          <img
-                                            src={editImagePreview}
-                                            alt="preview"
-                                            className="w-20 h-20 object-cover rounded-md border"
-                                          />
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              // remove existing preview/file
-                                              if (
-                                                editImagePreview &&
-                                                editImagePreview.startsWith(
-                                                  "blob:"
-                                                )
-                                              ) {
-                                                URL.revokeObjectURL(
-                                                  editImagePreview
-                                                );
-                                              }
-                                              setEditImageFile(null);
-                                              setEditImagePreview(null);
-                                            }}
-                                            className="absolute -top-2 -right-2 bg-red-100 text-red-600 rounded-full p-1 text-xs"
-                                            aria-label="ลบรูป"
+                                    <div className="flex items-center gap-3 flex-wrap">
+                                      {editImagePreviews &&
+                                      editImagePreviews.length > 0 ? (
+                                        editImagePreviews.map((p, idx) => (
+                                          <div
+                                            key={p.id || p.url || idx}
+                                            className="relative"
                                           >
-                                            ✕
-                                          </button>
-                                        </div>
+                                            <img
+                                              src={p.url || p}
+                                              alt={`preview-${idx}`}
+                                              className="w-20 h-20 object-cover rounded-md border"
+                                            />
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                // if it's an existing image (has id), mark for deletion
+                                                if (p && p.id) {
+                                                  setEditDeletedImageIds(
+                                                    (prev) => [...prev, p.id]
+                                                  );
+                                                }
+                                                // if blob URL, revoke
+                                                if (
+                                                  p &&
+                                                  p.url &&
+                                                  p.url.startsWith &&
+                                                  p.url.startsWith("blob:")
+                                                ) {
+                                                  URL.revokeObjectURL(p.url);
+                                                }
+                                                // remove from previews
+                                                setEditImagePreviews((prev) =>
+                                                  prev.filter((x) => x !== p)
+                                                );
+                                              }}
+                                              className="absolute -top-2 -right-2 bg-red-100 text-red-600 rounded-full p-1 text-xs"
+                                              aria-label="ลบรูป"
+                                            >
+                                              ✕
+                                            </button>
+                                          </div>
+                                        ))
                                       ) : (
                                         <div className="text-xs text-gray-400">
                                           ยังไม่มีรูป
@@ -572,30 +608,33 @@ const ReviewModal = ({
                                           id={`edit-image-${reviewId}`}
                                           type="file"
                                           accept="image/*"
+                                          multiple
                                           onChange={(e) => {
-                                            const f =
-                                              e.target.files &&
-                                              e.target.files[0];
-                                            if (!f) return;
-                                            const v = validateImageFile(f);
-                                            if (!v.ok) {
-                                              toast.error(v.msg);
-                                              return;
+                                            const files = Array.from(
+                                              e.target.files || []
+                                            );
+                                            const validFiles = [];
+                                            const previews = [];
+                                            for (const f of files) {
+                                              const v = validateImageFile(f);
+                                              if (!v.ok) {
+                                                toast.error(v.msg);
+                                                continue;
+                                              }
+                                              validFiles.push(f);
+                                              previews.push({
+                                                url: URL.createObjectURL(f),
+                                                isBlob: true,
+                                              });
                                             }
-                                            // revoke previous blob url
-                                            if (
-                                              editImagePreview &&
-                                              editImagePreview.startsWith(
-                                                "blob:"
-                                              )
-                                            ) {
-                                              URL.revokeObjectURL(
-                                                editImagePreview
-                                              );
-                                            }
-                                            const obj = URL.createObjectURL(f);
-                                            setEditImageFile(f);
-                                            setEditImagePreview(obj);
+                                            setEditImageFiles((prev) => [
+                                              ...prev,
+                                              ...validFiles,
+                                            ]);
+                                            setEditImagePreviews((prev) => [
+                                              ...prev,
+                                              ...previews,
+                                            ]);
                                           }}
                                           className="text-xs"
                                         />
@@ -706,31 +745,34 @@ const ReviewModal = ({
                     <label className="block text-xs font-medium text-gray-700 mb-1">
                       เพิ่มรูปภาพ (ถ้ามี)
                     </label>
-                    <div className="flex items-center gap-3">
-                      {newImagePreview ? (
-                        <div className="relative">
-                          <img
-                            src={newImagePreview}
-                            alt="preview"
-                            className="w-20 h-20 object-cover rounded-md border"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (
-                                newImagePreview &&
-                                newImagePreview.startsWith("blob:")
-                              )
-                                URL.revokeObjectURL(newImagePreview);
-                              setNewImageFile(null);
-                              setNewImagePreview(null);
-                            }}
-                            className="absolute -top-2 -right-2 bg-red-100 text-red-600 rounded-full p-1 text-xs"
-                            aria-label="ลบรูป"
-                          >
-                            ✕
-                          </button>
-                        </div>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      {newImagePreviews && newImagePreviews.length > 0 ? (
+                        newImagePreviews.map((p, idx) => (
+                          <div key={p + String(idx)} className="relative">
+                            <img
+                              src={p}
+                              alt={`preview-${idx}`}
+                              className="w-20 h-20 object-cover rounded-md border"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (p && p.startsWith && p.startsWith("blob:"))
+                                  URL.revokeObjectURL(p);
+                                setNewImageFiles((prev) =>
+                                  prev.filter((_, i) => i !== idx)
+                                );
+                                setNewImagePreviews((prev) =>
+                                  prev.filter((_, i) => i !== idx)
+                                );
+                              }}
+                              className="absolute -top-2 -right-2 bg-red-100 text-red-600 rounded-full p-1 text-xs"
+                              aria-label="ลบรูป"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))
                       ) : (
                         <div className="text-xs text-gray-400">ยังไม่มีรูป</div>
                       )}
@@ -738,22 +780,28 @@ const ReviewModal = ({
                         <input
                           type="file"
                           accept="image/*"
+                          multiple
                           onChange={(e) => {
-                            const f = e.target.files && e.target.files[0];
-                            if (!f) return;
-                            const v = validateImageFile(f);
-                            if (!v.ok) {
-                              toast.error(v.msg);
-                              return;
+                            const files = Array.from(e.target.files || []);
+                            const validFiles = [];
+                            const previews = [];
+                            for (const f of files) {
+                              const v = validateImageFile(f);
+                              if (!v.ok) {
+                                toast.error(v.msg);
+                                continue;
+                              }
+                              validFiles.push(f);
+                              previews.push(URL.createObjectURL(f));
                             }
-                            if (
-                              newImagePreview &&
-                              newImagePreview.startsWith("blob:")
-                            )
-                              URL.revokeObjectURL(newImagePreview);
-                            const obj = URL.createObjectURL(f);
-                            setNewImageFile(f);
-                            setNewImagePreview(obj);
+                            setNewImageFiles((prev) => [
+                              ...prev,
+                              ...validFiles,
+                            ]);
+                            setNewImagePreviews((prev) => [
+                              ...prev,
+                              ...previews,
+                            ]);
                           }}
                         />
                       </div>
