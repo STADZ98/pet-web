@@ -104,6 +104,8 @@ const ProductDetail = () => {
     carts,
     actionAddtoCart,
     actionUpdateQuantity,
+    token,
+    user,
   } = useEcomStore((state) => ({
     products: state.products || [],
     getProduct: state.getProduct,
@@ -112,6 +114,8 @@ const ProductDetail = () => {
     carts: state.carts || [],
     actionAddtoCart: state.actionAddtoCart,
     actionUpdateQuantity: state.actionUpdateQuantity,
+    token: state.token,
+    user: state.user,
   }));
 
   const [product, setProduct] = useState(null);
@@ -124,6 +128,8 @@ const ProductDetail = () => {
   // review UI states
   const [reviewFilter, setReviewFilter] = useState("all"); // 'all' | 'main' | variantId
   const [expandedReviewIds, setExpandedReviewIds] = useState(new Set());
+  // Admin reply state: { [reviewId]: { editing: bool, text: string } }
+  const [replyStates, setReplyStates] = useState({});
 
   // New: selected variant
   const [selectedVariantId, setSelectedVariantId] = useState(null);
@@ -350,6 +356,65 @@ const ProductDetail = () => {
       return vid === reviewFilter;
     });
   }, [reviews, reviewFilter]);
+
+  const API = import.meta.env.VITE_API || "/api";
+
+  const startReplyEdit = (reviewId, existingReply = "") => {
+    setReplyStates((s) => ({ ...s, [reviewId]: { editing: true, text: existingReply } }));
+  };
+
+  const cancelReplyEdit = (reviewId) => {
+    setReplyStates((s) => ({ ...s, [reviewId]: { editing: false, text: "" } }));
+  };
+
+  const handleReplyChange = (reviewId, text) => {
+    setReplyStates((s) => ({ ...s, [reviewId]: { ...(s[reviewId] || {}), text } }));
+  };
+
+  const handleReplySubmit = async (reviewId) => {
+    try {
+      const state = replyStates[reviewId] || {};
+      const text = (state.text || "").trim();
+      if (!text) return alert("โปรดใส่ข้อความตอบกลับ");
+      const method = filteredReviews.find((r) => String(r.id || r._id) === String(reviewId))?.reply ? "PATCH" : "POST";
+      const res = await fetch(`${API}/review/${String(reviewId)}/reply`, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: token ? `Bearer ${token}` : undefined,
+        },
+        body: JSON.stringify({ reply: text }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || data.message || "Failed to submit reply");
+      // update local reviews list by refetching
+      fetchReviews();
+      cancelReplyEdit(reviewId);
+      toast.success("ตอบกลับรีวิวเรียบร้อยแล้ว");
+    } catch (err) {
+      console.error(err);
+      alert(err.message || "เกิดข้อผิดพลาดในการตอบกลับ");
+    }
+  };
+
+  const handleReplyDelete = async (reviewId) => {
+    if (!window.confirm("ลบการตอบกลับใช่หรือไม่?")) return;
+    try {
+      const res = await fetch(`${API}/review/${String(reviewId)}/reply`, {
+        method: "DELETE",
+        headers: {
+          Authorization: token ? `Bearer ${token}` : undefined,
+        },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || data.message || "Failed to delete reply");
+      fetchReviews();
+      toast.success("ลบการตอบกลับแล้ว");
+    } catch (err) {
+      console.error(err);
+      alert(err.message || "เกิดข้อผิดพลาดในการลบการตอบกลับ");
+    }
+  };
 
   const toggleExpand = (id) => {
     setExpandedReviewIds((prev) => {
@@ -1136,6 +1201,49 @@ const ProductDetail = () => {
                                 </button>
                               )}
                             </p>
+                            {/* Admin reply display */}
+                            <div className="mt-3">
+                              {r.reply ? (
+                                <div className="bg-gray-50 border-l-4 border-orange-300 p-3 rounded">
+                                  <div className="text-sm text-gray-700 whitespace-pre-line">{r.reply}</div>
+                                  <div className="text-xs text-gray-400 mt-2">
+                                    ตอบโดย: {r.replyBy?.email || "ผู้ดูแลระบบ"} • {r.repliedAt ? new Date(r.repliedAt).toLocaleString("th-TH") : ""}
+                                  </div>
+                                </div>
+                              ) : null}
+
+                              {/* Admin controls */}
+                              {user?.role === "admin" && (
+                                <div className="mt-2 flex items-start gap-2">
+                                  {replyStates[rid] && replyStates[rid].editing ? (
+                                    <div className="flex-1">
+                                      <textarea
+                                        value={replyStates[rid].text}
+                                        onChange={(e) => handleReplyChange(rid, e.target.value)}
+                                        className="w-full border rounded px-3 py-2 text-sm"
+                                        rows={3}
+                                      />
+                                      <div className="flex gap-2 justify-end mt-2">
+                                        <button onClick={() => cancelReplyEdit(rid)} className="px-3 py-1 bg-gray-100 rounded text-sm">ยกเลิก</button>
+                                        <button onClick={() => handleReplySubmit(rid)} className="px-3 py-1 bg-orange-600 text-white rounded text-sm">บันทึก</button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <button
+                                        onClick={() => startReplyEdit(rid, r.reply || "")}
+                                        className="px-3 py-1 bg-white border rounded text-sm"
+                                      >
+                                        {r.reply ? "แก้ไขการตอบกลับ" : "ตอบกลับ"}
+                                      </button>
+                                      {r.reply && (
+                                        <button onClick={() => handleReplyDelete(rid)} className="px-3 py-1 bg-red-100 text-red-600 rounded text-sm">ลบการตอบกลับ</button>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
