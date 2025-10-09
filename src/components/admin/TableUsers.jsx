@@ -700,6 +700,10 @@ const TableUsers = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState({ type: null, data: null });
+  // filter states
+  const [query, setQuery] = useState("");
+  const [filterRole, setFilterRole] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -841,8 +845,31 @@ const TableUsers = () => {
     [token, getUsers]
   );
 
-  const adminUsers = users.filter((u) => u.role === "admin");
-  const normalUsers = users.filter((u) => u.role !== "admin");
+  // derived counts
+  const totalCount = users.length;
+  const adminCount = users.filter((u) => u.role === "admin").length;
+  const userCount = users.filter((u) => u.role !== "admin").length;
+
+  // apply filters and search
+  const filtered = users.filter((u) => {
+    // role filter
+    if (filterRole === "admin" && u.role !== "admin") return false;
+    if (filterRole === "user" && u.role === "admin") return false;
+    // status filter
+    if (filterStatus === "enabled" && !u.enabled) return false;
+    if (filterStatus === "disabled" && u.enabled) return false;
+    // search query (name or email)
+    if (query) {
+      const q = query.toLowerCase();
+      const name = (u.addresses && u.addresses[0]?.name) || "";
+      if (!u.email.toLowerCase().includes(q) && !name.toLowerCase().includes(q))
+        return false;
+    }
+    return true;
+  });
+
+  const adminUsers = filtered.filter((u) => u.role === "admin");
+  const normalUsers = filtered.filter((u) => u.role !== "admin");
 
   return (
     <div className="max-w-7xl mx-auto mt-10 px-4 font-th-sarabun text-gray-800">
@@ -853,6 +880,97 @@ const TableUsers = () => {
       )}
       {!loading && (
         <>
+          {/* Summary cards + filters */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="p-4 bg-white rounded-lg shadow-sm border border-blue-100 flex items-center justify-between">
+              <div>
+                <div className="text-sm text-gray-500">ผู้ใช้งานทั้งหมด</div>
+                <div className="text-2xl font-extrabold text-blue-700">
+                  {totalCount}
+                </div>
+                <div className="text-xs text-gray-400">
+                  รวมผู้ดูแล {adminCount} • สมาชิก {userCount}
+                </div>
+              </div>
+              <div className="p-3 bg-blue-50 rounded-lg text-blue-600">
+                <User className="w-7 h-7" />
+              </div>
+            </div>
+            <div className="p-4 bg-white rounded-lg shadow-sm border border-blue-100 flex items-center justify-between">
+              <div>
+                <div className="text-sm text-gray-500">ผู้ดูแลระบบ</div>
+                <div className="text-2xl font-extrabold text-yellow-700">
+                  {adminCount}
+                </div>
+                <div className="text-xs text-gray-400">
+                  จัดการสิทธิ์และเนื้อหา
+                </div>
+              </div>
+              <div className="p-3 bg-yellow-50 rounded-lg text-yellow-700">
+                <UserPen className="w-7 h-7" />
+              </div>
+            </div>
+            <div className="p-4 bg-white rounded-lg shadow-sm border border-blue-100 flex items-center justify-between">
+              <div>
+                <div className="text-sm text-gray-500">สมาชิกทั่วไป</div>
+                <div className="text-2xl font-extrabold text-blue-700">
+                  {userCount}
+                </div>
+                <div className="text-xs text-gray-400">
+                  ลูกค้าหรือผู้ใช้งานทั่วไป
+                </div>
+              </div>
+              <div className="p-3 bg-blue-50 rounded-lg text-blue-600">
+                <UserCheck className="w-7 h-7" />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+            <div className="flex items-center gap-3 w-full md:w-1/2">
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="ค้นหา ชื่อ หรือ อีเมล..."
+                className="w-full border border-gray-300 rounded-md px-4 py-2 shadow-sm focus:ring-2 focus:ring-blue-400 focus:border-transparent text-sm"
+              />
+            </div>
+
+            <div className="flex items-center gap-3">
+              <select
+                value={filterRole}
+                onChange={(e) => setFilterRole(e.target.value)}
+                className="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white shadow-sm"
+              >
+                <option value="all">สิทธิ์: ทั้งหมด</option>
+                <option value="admin">ผู้ดูแล</option>
+                <option value="user">สมาชิก</option>
+              </select>
+
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white shadow-sm"
+              >
+                <option value="all">สถานะ: ทั้งหมด</option>
+                <option value="enabled">ใช้งาน</option>
+                <option value="disabled">ไม่ใช้งาน</option>
+              </select>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setQuery("");
+                  setFilterRole("all");
+                  setFilterStatus("all");
+                }}
+                className="px-3 py-2 bg-gray-100 rounded-md text-sm text-gray-700 hover:bg-gray-200"
+              >
+                ล้าง
+              </button>
+            </div>
+          </div>
+
           <Section
             title="ผู้ดูแลระบบ"
             users={adminUsers}
