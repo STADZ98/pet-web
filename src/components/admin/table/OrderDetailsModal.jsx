@@ -686,9 +686,9 @@ export default function OrderDetailsModal({
                                       <div className="font-semibold text-gray-800">
                                         {p.product?.title}
                                       </div>
-                                      <div className="text-xs text-gray-500">
+                                      {/* <div className="text-xs text-gray-500">
                                         {p.variant?.title || "ไม่ระบุ"}
-                                      </div>
+                                      </div> */}
                                     </div>
                                   </div>
                                 </td>
