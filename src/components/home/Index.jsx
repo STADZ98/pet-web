@@ -20,8 +20,6 @@ import { listProductBy } from "../../api/product";
 import ProductTabs from "./ProductTabs";
 import SwiperShowProduct from "../../utils/SwiperShowProduct";
 import CartCard from "../card/CartCard";
-import FullPageSpinner from "../ui/FullPageSpinner";
-import { useRef } from "react";
 
 // -----------------------------------------------------------------------------
 // Constants (dummy content that you can later source from CMS)
@@ -107,23 +105,11 @@ const ARTICLES = [
 // -----------------------------------------------------------------------------
 // Data Hook (fetch + global store hydration)
 // -----------------------------------------------------------------------------
-const useProductData = ({
-  initialBestSeller = null,
-  initialNewProduct = null,
-} = {}) => {
-  const [bestSeller, setBestSeller] = useState(
-    Array.isArray(initialBestSeller) ? initialBestSeller : []
-  );
-  // Only treat as already-loaded when loader provided a non-empty array
-  const [loadingBestSeller, setLoadingBestSeller] = useState(
-    !(Array.isArray(initialBestSeller) && initialBestSeller.length > 0)
-  );
-  const [newProduct, setNewProduct] = useState(
-    Array.isArray(initialNewProduct) ? initialNewProduct : []
-  );
-  const [loadingNewProduct, setLoadingNewProduct] = useState(
-    !(Array.isArray(initialNewProduct) && initialNewProduct.length > 0)
-  );
+const useProductData = () => {
+  const [bestSeller, setBestSeller] = useState([]);
+  const [loadingBestSeller, setLoadingBestSeller] = useState(true);
+  const [newProduct, setNewProduct] = useState([]);
+  const [loadingNewProduct, setLoadingNewProduct] = useState(true);
 
   // Global stores
   const categories = useEcomStore((s) => s.categories || []);
@@ -133,11 +119,8 @@ const useProductData = ({
   const getSubcategories = useEcomStore((s) => s.getSubcategories);
   const getBrands = useEcomStore((s) => s.getBrands);
 
-  // Load best sellers (skip if provided by initial data)
+  // Load best sellers
   useEffect(() => {
-    // skip fetch only when loader gave a non-empty array
-    if (Array.isArray(initialBestSeller) && initialBestSeller.length > 0)
-      return undefined;
     let ignore = false;
     (async () => {
       try {
@@ -153,13 +136,10 @@ const useProductData = ({
     return () => {
       ignore = true;
     };
-  }, [initialBestSeller]);
+  }, []);
 
-  // Load new products (by update time) (skip if provided by initial data)
+  // Load new products (by update time)
   useEffect(() => {
-    // skip fetch only when loader gave a non-empty array
-    if (Array.isArray(initialNewProduct) && initialNewProduct.length > 0)
-      return undefined;
     let ignore = false;
     (async () => {
       try {
@@ -175,7 +155,7 @@ const useProductData = ({
     return () => {
       ignore = true;
     };
-  }, [initialNewProduct]);
+  }, []);
 
   // Hydrate taxonomy lists
   useEffect(() => {
@@ -1039,7 +1019,7 @@ const CartOverlay = ({ open, onClose }) => (
 // -----------------------------------------------------------------------------
 // Page
 // -----------------------------------------------------------------------------
-const Index = ({ initialBestSeller = null, initialNewProduct = null }) => {
+const Index = () => {
   const [isCartOpen, setIsCartOpen] = useState(false);
 
   const {
@@ -1050,52 +1030,10 @@ const Index = ({ initialBestSeller = null, initialNewProduct = null }) => {
     categories,
     subcategories,
     brands,
-  } = useProductData({ initialBestSeller, initialNewProduct });
-
-  // Tab title spinner while loading
-  const originalTitleRef = useRef(typeof document !== "undefined" ? document.title : "");
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    const frames = ["◐", "◓", "◑", "◒"];
-    let idx = 0;
-    let tid = null;
-
-    const start = () => {
-      if (tid) return;
-      tid = setInterval(() => {
-        document.title = `${frames[idx % frames.length]} ${originalTitleRef.current}`;
-        idx += 1;
-      }, 200);
-    };
-
-    const stop = () => {
-      if (tid) {
-        clearInterval(tid);
-        tid = null;
-      }
-      // restore original title
-      document.title = originalTitleRef.current;
-    };
-
-    if (loadingBestSeller || loadingNewProduct) {
-      // capture current title (only first time)
-      if (!originalTitleRef.current) originalTitleRef.current = document.title;
-      start();
-    } else {
-      stop();
-    }
-
-    return () => {
-      if (tid) clearInterval(tid);
-      document.title = originalTitleRef.current;
-    };
-  }, [loadingBestSeller, loadingNewProduct]);
+  } = useProductData();
 
   return (
     <div className="bg-gray-50 min-h-screen relative">
-      {(loadingBestSeller || loadingNewProduct) && (
-        <FullPageSpinner message={"กำลังโหลดสินค้า โปรดรอสักครู่..."} />
-      )}
       {/* Hero */}
       <HeroCarousel images={CAROUSEL_IMAGES} />
 

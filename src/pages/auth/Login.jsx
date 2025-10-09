@@ -2,13 +2,11 @@ import React, { useState } from "react";
 import { toast } from "react-toastify";
 import useEcomStore from "../../store/ecom-store";
 import { useNavigate, Link } from "react-router-dom";
-import { listProductBy } from "../../api/product";
 import { FiMail, FiLock } from "react-icons/fi";
 
 const Login = () => {
   const navigate = useNavigate();
   const actionLogin = useEcomStore((state) => state.actionLogin);
-  const getProduct = useEcomStore((state) => state.getProduct);
 
   const [form, setForm] = useState({
     email: "",
@@ -29,45 +27,8 @@ const Login = () => {
     setLoading(true);
     try {
       const res = await actionLogin(form);
-      // actionLogin may return normalized { payload, token, profile, raw }
-      // or legacy axios response. Try a few fallbacks to extract role.
-      const role =
-        res?.payload?.role ||
-        res?.raw?.data?.payload?.role ||
-        res?.data?.payload?.role;
-      // for debugging, you can uncomment the next line
-      // console.debug('login result', res, 'role', role);
-      // Prefetch Home product lists (bestSeller, newProduct) so Home can render immediately
-      let bestSeller = null;
-      let newProduct = null;
-      try {
-        const results = await Promise.allSettled([
-          listProductBy("sold", "desc", 4),
-          listProductBy("updatedAt", "desc", 3),
-        ]);
-        if (results[0].status === "fulfilled") {
-          bestSeller = results[0].value?.data || null;
-        }
-        if (results[1].status === "fulfilled") {
-          newProduct = results[1].value?.data || null;
-        }
-      } catch (preErr) {
-        console.error("Prefetch home products failed:", preErr);
-      }
-
-      // Trigger background product hydration (non-blocking)
-      try {
-        getProduct?.();
-      } catch (e) {
-        console.warn("getProduct background failed:", e);
-      }
-
-      // Navigate to home and pass prefetched data via location.state
-      if (role === "admin") {
-        navigate("/admin", { replace: true });
-      } else {
-        navigate("/", { replace: true, state: { bestSeller, newProduct } });
-      }
+      const role = res.data.payload.role;
+      roleRedirect(role);
       // toast.success("ยินดีต้อนรับเข้าสู่ระบบ!");
     } catch (err) {
       const errMsg =
@@ -75,6 +36,14 @@ const Login = () => {
       toast.error(errMsg);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const roleRedirect = (role) => {
+    if (role === "admin") {
+      navigate("/admin", { replace: true });
+    } else {
+      navigate("/", { replace: true });
     }
   };
 
@@ -170,14 +139,14 @@ const Login = () => {
           </div>
 
           {/* Forgot Password */}
-          {/* <div className="text-right text-sm">
+          <div className="text-right text-sm">
             <a
               href="#"
               className="text-blue-500 hover:underline hover:text-blue-700 transition"
             >
               ลืมรหัสผ่าน?
             </a>
-          </div> */}
+          </div>
 
           {/* Submit Button */}
           <button
