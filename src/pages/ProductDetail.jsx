@@ -1222,14 +1222,33 @@ const ProductDetail = () => {
                                 </button>
                               )}
                             </p>
-                            {/* Review image (if any) */}
+                            {/* Review images (render all thumbnails) */}
                             {r.images && r.images.length > 0 && (
-                              <div className="mt-3">
-                                <img
-                                  src={`${API}/review/image/${r.images[0].id}`}
-                                  alt={r.images[0].filename || "review image"}
-                                  className="w-40 h-40 object-cover rounded-md border"
-                                />
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                {r.images.map((img) => (
+                                  <button
+                                    key={img.id}
+                                    type="button"
+                                    onClick={() =>
+                                      window.open(
+                                        `${API}/review/image/${img.id}`,
+                                        "_blank"
+                                      )
+                                    }
+                                    className="p-0 border rounded overflow-hidden bg-white shadow-sm"
+                                    aria-label={img.filename || "review image"}
+                                  >
+                                    <img
+                                      src={`${API}/review/image/${img.id}`}
+                                      alt={img.filename || "review image"}
+                                      className="w-24 h-24 object-cover rounded-md"
+                                      onError={(e) => {
+                                        e.target.onerror = null;
+                                        e.target.src = NO_IMAGE_DATA_URL;
+                                      }}
+                                    />
+                                  </button>
+                                ))}
                               </div>
                             )}
                             {/* Admin reply display */}
