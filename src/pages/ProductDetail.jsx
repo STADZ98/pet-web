@@ -1200,6 +1200,23 @@ const ProductDetail = () => {
                 filteredReviews.map((r) => {
                   const rid = r.id || r._id;
                   const author = r.address?.name || r.user?.email || "ผู้ใช้";
+                  // try to find avatar in common fields and normalize to absolute URL if possible
+                  const possibleAvatar =
+                    r.user?.avatar ||
+                    r.address?.avatar ||
+                    r.avatar ||
+                    (r.user && r.user.profileImage) ||
+                    null;
+                  let avatarUrlNormalized =
+                    normalizeImageUrl(possibleAvatar) || null;
+                  // if normalized value is a relative path (no protocol) but starts with '/', prefix with API base
+                  if (
+                    avatarUrlNormalized &&
+                    !/^https?:\/\//i.test(avatarUrlNormalized) &&
+                    avatarUrlNormalized.startsWith("/")
+                  ) {
+                    avatarUrlNormalized = `${API}${avatarUrlNormalized}`;
+                  }
                   const date = r.createdAt
                     ? new Date(r.createdAt).toLocaleDateString("th-TH")
                     : "";
@@ -1222,13 +1239,7 @@ const ProductDetail = () => {
                         {/* avatar */}
                         <ReviewerAvatar
                           author={author}
-                          avatarUrl={
-                            r.user?.avatar ||
-                            r.address?.avatar ||
-                            r.avatar ||
-                            (r.user && r.user.profileImage) ||
-                            null
-                          }
+                          avatarUrl={avatarUrlNormalized}
                           size={40}
                         />
 
