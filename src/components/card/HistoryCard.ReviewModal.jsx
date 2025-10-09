@@ -55,6 +55,23 @@ const ReviewModal = ({
     rating: 5,
     comment: "",
   });
+  const [newImageFile, setNewImageFile] = useState(null);
+  const [newImagePreview, setNewImagePreview] = useState(null);
+  const [editImageFile, setEditImageFile] = useState(null);
+  const [editImagePreview, setEditImagePreview] = useState(null);
+
+  // Validate image file (type and size)
+  const validateImageFile = (file) => {
+    if (!file) return { ok: false, msg: "No file" };
+    if (!file.type.startsWith("image/")) {
+      return { ok: false, msg: "ไฟล์ต้องเป็นรูปภาพเท่านั้น" };
+    }
+    const max = 2 * 1024 * 1024; // 2MB
+    if (file.size > max) {
+      return { ok: false, msg: "ขนาดไฟล์ต้องไม่เกิน 2MB" };
+    }
+    return { ok: true };
+  };
 
   const textareaRef = useRef(null);
 
@@ -129,6 +146,10 @@ const ReviewModal = ({
           rating: arr[0].rating || 5,
           comment: arr[0].comment || "",
         });
+        // Preload existing image (if review includes image url)
+        const first = arr[0];
+        const imgUrl = first.image || first.imageUrl || first.image_url || null;
+        if (imgUrl) setEditImagePreview(imgUrl);
       }
     } catch (err) {
       console.debug(err);
@@ -142,6 +163,16 @@ const ReviewModal = ({
       setEditReview({ id: null, rating: 5, comment: "" });
     }
   }, [isOpen, fetchReviews, API]);
+
+  // Cleanup object URLs when files change/unmount
+  useEffect(() => {
+    return () => {
+      if (newImagePreview && newImagePreview.startsWith("blob:"))
+        URL.revokeObjectURL(newImagePreview);
+      if (editImagePreview && editImagePreview.startsWith("blob:"))
+        URL.revokeObjectURL(editImagePreview);
+    };
+  }, [newImagePreview, editImagePreview]);
 
   const currentPid = useMemo(
     () => String(getProductId(product) || ""),
@@ -203,23 +234,43 @@ const ReviewModal = ({
   const handleSubmit = async () => {
     try {
       setLoading(true);
-      const body = {
-        productId: getProductId(product),
-        rating: newReview.rating,
-        comment: newReview.comment,
-      };
       const variantId = getVariantId(product);
-      if (variantId) body.variantId = variantId;
-      if (reviewOrderId) body.orderId = reviewOrderId;
+      // If there's an image file, send multipart/form-data
+      let res;
+      if (newImageFile) {
+        const fd = new FormData();
+        fd.append("productId", getProductId(product));
+        fd.append("rating", String(newReview.rating));
+        fd.append("comment", newReview.comment);
+        if (variantId) fd.append("variantId", String(variantId));
+        if (reviewOrderId) fd.append("orderId", String(reviewOrderId));
+        fd.append("image", newImageFile);
 
-      const res = await fetch(`${API}/review`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: token ? `Bearer ${token}` : undefined,
-        },
-        body: JSON.stringify(body),
-      });
+        res = await fetch(`${API}/review`, {
+          method: "POST",
+          headers: {
+            Authorization: token ? `Bearer ${token}` : undefined,
+          },
+          body: fd,
+        });
+      } else {
+        const body = {
+          productId: getProductId(product),
+          rating: newReview.rating,
+          comment: newReview.comment,
+        };
+        if (variantId) body.variantId = variantId;
+        if (reviewOrderId) body.orderId = reviewOrderId;
+
+        res = await fetch(`${API}/review`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: token ? `Bearer ${token}` : undefined,
+          },
+          body: JSON.stringify(body),
+        });
+      }
       if (!res.ok) {
         const txt = await res.text().catch(() => "");
         throw new Error(txt || "Failed to submit review");
@@ -244,18 +295,34 @@ const ReviewModal = ({
     if (!editReview.id) return;
     try {
       setLoading(true);
-      const payload = {
-        rating: editReview.rating,
-        comment: editReview.comment,
-      };
-      const res = await fetch(`${API}/review/${editReview.id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: token ? `Bearer ${token}` : undefined,
-        },
-        body: JSON.stringify(payload),
-      });
+      let res;
+      // If replacing/adding image, use FormData
+      if (editImageFile) {
+        const fd = new FormData();
+        fd.append("rating", String(editReview.rating));
+        fd.append("comment", editReview.comment);
+        fd.append("image", editImageFile);
+        res = await fetch(`${API}/review/${editReview.id}`, {
+          method: "PATCH",
+          headers: {
+            Authorization: token ? `Bearer ${token}` : undefined,
+          },
+          body: fd,
+        });
+      } else {
+        const payload = {
+          rating: editReview.rating,
+          comment: editReview.comment,
+        };
+        res = await fetch(`${API}/review/${editReview.id}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: token ? `Bearer ${token}` : undefined,
+          },
+          body: JSON.stringify(payload),
+        });
+      }
       if (!res.ok) {
         const txt = await res.text().catch(() => "");
         throw new Error(txt || "Failed to edit review");
@@ -269,6 +336,8 @@ const ReviewModal = ({
       onReviewSubmitted?.(pid, ts, vid);
 
       setEditReview({ id: null, rating: 5, comment: "" });
+      setEditImageFile(null);
+      setEditImagePreview(null);
       fetchReviews();
     } catch (err) {
       setLoading(false);
@@ -431,6 +500,14 @@ const ReviewModal = ({
                                       rating: r.rating,
                                       comment: r.comment,
                                     });
+                                    // preload existing image into edit preview if available
+                                    const imgUrl =
+                                      r.image ||
+                                      r.imageUrl ||
+                                      r.image_url ||
+                                      null;
+                                    setEditImageFile(null);
+                                    setEditImagePreview(imgUrl);
                                     setTimeout(
                                       () => textareaRef.current?.focus(),
                                       50
@@ -449,6 +526,82 @@ const ReviewModal = ({
 
                               {isEditing && (
                                 <div className="mt-3 p-3 border-t pt-3 bg-gray-50 rounded">
+                                  {/* Edit image preview / upload */}
+                                  <div className="mb-3">
+                                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                                      รูปภาพรีวิว (ถ้ามี)
+                                    </label>
+                                    <div className="flex items-center gap-3">
+                                      {editImagePreview ? (
+                                        <div className="relative">
+                                          <img
+                                            src={editImagePreview}
+                                            alt="preview"
+                                            className="w-20 h-20 object-cover rounded-md border"
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              // remove existing preview/file
+                                              if (
+                                                editImagePreview &&
+                                                editImagePreview.startsWith(
+                                                  "blob:"
+                                                )
+                                              ) {
+                                                URL.revokeObjectURL(
+                                                  editImagePreview
+                                                );
+                                              }
+                                              setEditImageFile(null);
+                                              setEditImagePreview(null);
+                                            }}
+                                            className="absolute -top-2 -right-2 bg-red-100 text-red-600 rounded-full p-1 text-xs"
+                                            aria-label="ลบรูป"
+                                          >
+                                            ✕
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <div className="text-xs text-gray-400">
+                                          ยังไม่มีรูป
+                                        </div>
+                                      )}
+                                      <div>
+                                        <input
+                                          id={`edit-image-${reviewId}`}
+                                          type="file"
+                                          accept="image/*"
+                                          onChange={(e) => {
+                                            const f =
+                                              e.target.files &&
+                                              e.target.files[0];
+                                            if (!f) return;
+                                            const v = validateImageFile(f);
+                                            if (!v.ok) {
+                                              toast.error(v.msg);
+                                              return;
+                                            }
+                                            // revoke previous blob url
+                                            if (
+                                              editImagePreview &&
+                                              editImagePreview.startsWith(
+                                                "blob:"
+                                              )
+                                            ) {
+                                              URL.revokeObjectURL(
+                                                editImagePreview
+                                              );
+                                            }
+                                            const obj = URL.createObjectURL(f);
+                                            setEditImageFile(f);
+                                            setEditImagePreview(obj);
+                                          }}
+                                          className="text-xs"
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
                                   <div className="flex items-center gap-3">
                                     <StarRating
                                       value={editReview.rating}
@@ -548,6 +701,64 @@ const ReviewModal = ({
                     placeholder="เขียนรีวิวและแบ่งปันประสบการณ์ของคุณ..."
                     disabled={loading}
                   />
+                  {/* New review image upload */}
+                  <div className="mt-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      เพิ่มรูปภาพ (ถ้ามี)
+                    </label>
+                    <div className="flex items-center gap-3">
+                      {newImagePreview ? (
+                        <div className="relative">
+                          <img
+                            src={newImagePreview}
+                            alt="preview"
+                            className="w-20 h-20 object-cover rounded-md border"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (
+                                newImagePreview &&
+                                newImagePreview.startsWith("blob:")
+                              )
+                                URL.revokeObjectURL(newImagePreview);
+                              setNewImageFile(null);
+                              setNewImagePreview(null);
+                            }}
+                            className="absolute -top-2 -right-2 bg-red-100 text-red-600 rounded-full p-1 text-xs"
+                            aria-label="ลบรูป"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="text-xs text-gray-400">ยังไม่มีรูป</div>
+                      )}
+                      <div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const f = e.target.files && e.target.files[0];
+                            if (!f) return;
+                            const v = validateImageFile(f);
+                            if (!v.ok) {
+                              toast.error(v.msg);
+                              return;
+                            }
+                            if (
+                              newImagePreview &&
+                              newImagePreview.startsWith("blob:")
+                            )
+                              URL.revokeObjectURL(newImagePreview);
+                            const obj = URL.createObjectURL(f);
+                            setNewImageFile(f);
+                            setNewImagePreview(obj);
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
               <div className="flex justify-end gap-2">

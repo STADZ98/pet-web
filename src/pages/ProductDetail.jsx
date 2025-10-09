@@ -1222,6 +1222,16 @@ const ProductDetail = () => {
                                 </button>
                               )}
                             </p>
+                            {/* Review image (if any) */}
+                            {r.images && r.images.length > 0 && (
+                              <div className="mt-3">
+                                <img
+                                  src={`${API}/review/image/${r.images[0].id}`}
+                                  alt={r.images[0].filename || "review image"}
+                                  className="w-40 h-40 object-cover rounded-md border"
+                                />
+                              </div>
+                            )}
                             {/* Admin reply display */}
                             <div className="mt-3">
                               {r.reply ? (
