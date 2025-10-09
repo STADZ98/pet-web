@@ -302,7 +302,8 @@ const ProductDetail = () => {
     if (!product?.id) return;
     setLoadingReviews(true);
     const prodId = parseInt(product.id, 10);
-    fetch(`/api/review/${prodId}`)
+    const API = import.meta.env.VITE_API || "/api";
+    fetch(`${API}/review/${prodId}`)
       .then((res) => res.json())
       .then((data) => {
         setReviews(data.reviews || []);

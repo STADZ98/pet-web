@@ -62,6 +62,9 @@ const ReviewModal = ({
   const getVariantId = (p) =>
     p?.variantId ?? p?.variant?._id ?? p?.variant?.id ?? null;
 
+  // API base (can be overridden by Vite env VITE_API)
+  const API = import.meta.env.VITE_API || "/api";
+
   const onReviewDeletedRef = useRef(onReviewDeleted);
   useEffect(() => {
     onReviewDeletedRef.current = onReviewDeleted;
@@ -76,7 +79,7 @@ const ReviewModal = ({
       if (variantId) params.set("variantId", String(variantId));
       if (reviewOrderId) params.set("orderId", String(reviewOrderId));
 
-      const url = `/api/review/${prodId}${
+      const url = `${API}/review/${prodId}${
         params.toString() ? "?" + params.toString() : ""
       }`;
       const res = await fetch(url, {
@@ -125,14 +128,14 @@ const ReviewModal = ({
       console.debug(err);
       setReviews([]);
     }
-  }, [product, token, userId, reviewOrderId]);
+  }, [product, token, userId, reviewOrderId, API]);
 
   useEffect(() => {
     if (isOpen) {
       fetchReviews();
       setEditReview({ id: null, rating: 5, comment: "" });
     }
-  }, [isOpen, fetchReviews]);
+  }, [isOpen, fetchReviews, API]);
 
   const currentPid = useMemo(
     () => String(getProductId(product) || ""),
@@ -203,7 +206,7 @@ const ReviewModal = ({
       if (variantId) body.variantId = variantId;
       if (reviewOrderId) body.orderId = reviewOrderId;
 
-      const res = await fetch(`/api/review`, {
+      const res = await fetch(`${API}/review`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -236,7 +239,7 @@ const ReviewModal = ({
         rating: editReview.rating,
         comment: editReview.comment,
       };
-      const res = await fetch(`/api/review/${editReview.id}`, {
+      const res = await fetch(`${API}/review/${editReview.id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -266,7 +269,7 @@ const ReviewModal = ({
     if (!window.confirm("คุณแน่ใจหรือไม่ว่าต้องการลบรีวิวนี้?")) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/review/${String(id)}`, {
+      const res = await fetch(`${API}/review/${String(id)}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
