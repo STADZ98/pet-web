@@ -1629,7 +1629,6 @@ const FormProduct = () => {
       setSubcategories([]);
       setForm((prev) => ({ ...prev, subcategoryId: "", subSubcategoryId: "" }));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.categoryId]);
 
   // โหลด subSubcategory เมื่อเลือก subcategory (single effect)
@@ -1640,7 +1639,6 @@ const FormProduct = () => {
       setSubSubcategories([]);
       setForm((prev) => ({ ...prev, subSubcategoryId: "" }));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.subcategoryId]);
 
   // Delete product handler
@@ -1696,7 +1694,9 @@ const FormProduct = () => {
         if (res.ok) {
           data = await res.json();
         }
-      } catch {}
+      } catch (e) {
+        console.debug("fetchSubcategories primary API failed", e?.message || e);
+      }
       if (!data.length) {
         try {
           // กรณี backend อีกตัว (เช่น proxy หรือ dev)
@@ -1704,7 +1704,12 @@ const FormProduct = () => {
           if (res2.ok) {
             data = await res2.json();
           }
-        } catch {}
+        } catch (e) {
+          console.debug(
+            "fetchSubcategories fallback API failed",
+            e?.message || e
+          );
+        }
       }
       setSubcategories(Array.isArray(data) ? data : []);
     } catch (err) {

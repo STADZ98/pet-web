@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 
 import useEcomStore from "../../store/ecom-store";
-import { listProductBy } from "../../api/product";
+// ...existing imports
 import ProductTabs from "./ProductTabs";
 import SwiperShowProduct from "../../utils/SwiperShowProduct";
 import CartCard from "../card/CartCard";
@@ -124,8 +124,9 @@ const useProductData = () => {
     let ignore = false;
     (async () => {
       try {
-        const res = await listProductBy("sold", "desc", 4);
-        if (!ignore) setBestSeller(res?.data || []);
+        const fetchProducts = useEcomStore.getState().fetchProducts;
+        const items = await fetchProducts("sold", "desc", 4);
+        if (!ignore) setBestSeller(items || []);
       } catch (err) {
         if (!ignore) setBestSeller([]);
         console.error("Failed to load best sellers:", err);
@@ -143,8 +144,9 @@ const useProductData = () => {
     let ignore = false;
     (async () => {
       try {
-        const res = await listProductBy("updatedAt", "desc", 3);
-        if (!ignore) setNewProduct(res?.data || []);
+        const fetchProducts = useEcomStore.getState().fetchProducts;
+        const items = await fetchProducts("updatedAt", "desc", 3);
+        if (!ignore) setNewProduct(items || []);
       } catch (err) {
         if (!ignore) setNewProduct([]);
         console.error("Failed to load new products:", err);

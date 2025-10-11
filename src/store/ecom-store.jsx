@@ -21,6 +21,8 @@ const initialState = {
   subsubcategories: [],
   brands: [],
   products: [],
+  // simple in-memory cache for product lists to avoid refetching
+  _productsCache: {},
 
   carts: [],
   orders: [],
@@ -118,11 +120,98 @@ const ecomStore = (set, get) => ({
         limit = args[2] ?? limit;
       }
 
+      // build cache key based on token (or empty), sort, order, limit
+      const cacheKey = `${token || "anon"}:${sort}:${order}:${limit}`;
+
+      // return cached if available
+      const cache = get()._productsCache || {};
+      if (cache[cacheKey]) {
+        set({ products: cache[cacheKey] });
+        return cache[cacheKey];
+      }
+
       const res = await listProductBy(token, sort, order, limit);
-      set({ products: res.data || [] });
+      const productsData = res.data || [];
+      // save to cache
+      set((state) => ({
+        products: productsData,
+        _productsCache: {
+          ...(state._productsCache || {}),
+          [cacheKey]: productsData,
+        },
+      }));
+      return productsData;
     } catch (err) {
       console.error("getProduct error:", err.response?.data || err.message);
       set({ products: [] });
+    }
+  },
+
+  // fetchProducts: similar to getProduct but doesn't mutate global `products` state
+  fetchProducts: async (...args) => {
+    try {
+      let token = get().token || null;
+      let sort = "createdAt";
+      let order = "desc";
+      let limit = 50;
+
+      if (args.length === 1) {
+        if (typeof args[0] === "string") token = args[0];
+        else if (typeof args[0] === "number") limit = args[0];
+      } else if (args.length === 2) {
+        if (typeof args[0] === "string" && typeof args[1] === "number") {
+          token = args[0];
+          limit = args[1];
+        } else if (typeof args[0] === "string" && typeof args[1] === "string") {
+          sort = args[0];
+          order = args[1];
+        }
+      } else if (args.length >= 3) {
+        sort = args[0] ?? sort;
+        order = args[1] ?? order;
+        limit = args[2] ?? limit;
+      }
+
+      const cacheKey = `${token || "anon"}:${sort}:${order}:${limit}`;
+      const cache = get()._productsCache || {};
+      if (cache[cacheKey]) {
+        return cache[cacheKey];
+      }
+
+      const res = await listProductBy(token, sort, order, limit);
+      const productsData = res.data || [];
+      // save to cache only
+      set((state) => ({
+        _productsCache: {
+          ...(state._productsCache || {}),
+          [cacheKey]: productsData,
+        },
+      }));
+      return productsData;
+    } catch (err) {
+      console.error("fetchProducts error:", err.response?.data || err.message);
+      return [];
+    }
+  },
+
+  // clear entire products cache
+  clearProductsCache: () => {
+    set({ _productsCache: {} });
+  },
+
+  // invalidate a specific cache entry by key parts
+  invalidateProductsCacheKey: ({
+    token = null,
+    sort = "createdAt",
+    order = "desc",
+    limit = 50,
+  } = {}) => {
+    const cacheKey = `${token || "anon"}:${sort}:${order}:${limit}`;
+    const cache = get()._productsCache || {};
+    if (cache[cacheKey]) {
+      const newCache = { ...cache };
+      delete newCache[cacheKey];
+      set({ _productsCache: newCache });
     }
   },
 

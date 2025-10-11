@@ -1,14 +1,24 @@
 import axios from "axios";
+import useEcomStore from "../store/ecom-store";
 
 const API =
   import.meta.env.VITE_API || "https://server-api-newgenz.vercel.app/api";
 
 export const createProduct = async (token, form) => {
-  return axios.post(`${API}/product`, form, {
+  const res = await axios.post(`${API}/product`, form, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
   });
+  try {
+    useEcomStore.getState().clearProductsCache?.();
+  } catch (e) {
+    console.debug(
+      "clearProductsCache failed after createProduct",
+      e?.message || e
+    );
+  }
+  return res;
 };
 export const listProduct = async (count = 20) => {
   return axios.get(`${API}/products/${count}`);
@@ -21,28 +31,55 @@ export const readProduct = async (token, id) => {
   });
 };
 export const deleteProduct = async (token, id) => {
-  return axios.delete(`${API}/product/` + id, {
+  const res = await axios.delete(`${API}/product/` + id, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
   });
+  try {
+    useEcomStore.getState().clearProductsCache?.();
+  } catch (e) {
+    console.debug(
+      "clearProductsCache failed after deleteProduct",
+      e?.message || e
+    );
+  }
+  return res;
 };
 export const updateProduct = async (token, id, form) => {
-  return axios.put(`${API}/product/` + id, form, {
+  const res = await axios.put(`${API}/product/` + id, form, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
   });
+  try {
+    useEcomStore.getState().clearProductsCache?.();
+  } catch (e) {
+    console.debug(
+      "clearProductsCache failed after updateProduct",
+      e?.message || e
+    );
+  }
+  return res;
 };
 export const deleteVariant = async (token, id) => {
-  return axios.delete(`${API}/variant/` + id, {
+  const res = await axios.delete(`${API}/variant/` + id, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
   });
+  try {
+    useEcomStore.getState().clearProductsCache?.();
+  } catch (e) {
+    console.debug(
+      "clearProductsCache failed after deleteVariant",
+      e?.message || e
+    );
+  }
+  return res;
 };
 export const uploadFiles = async (token, form) => {
-  return axios.post(
+  const res = await axios.post(
     `${API}/images`,
     {
       image: form,
@@ -53,9 +90,18 @@ export const uploadFiles = async (token, form) => {
       },
     }
   );
+  try {
+    useEcomStore.getState().clearProductsCache?.();
+  } catch (e) {
+    console.debug(
+      "clearProductsCache failed after uploadFiles",
+      e?.message || e
+    );
+  }
+  return res;
 };
 export const removeFiles = async (token, public_id) => {
-  return axios.post(
+  const res = await axios.post(
     `${API}/removeimages`,
     {
       public_id,
@@ -66,6 +112,15 @@ export const removeFiles = async (token, public_id) => {
       },
     }
   );
+  try {
+    useEcomStore.getState().clearProductsCache?.();
+  } catch (e) {
+    console.debug(
+      "clearProductsCache failed after removeFiles",
+      e?.message || e
+    );
+  }
+  return res;
 };
 export const searchFilters = async (arg) => {
   return axios.post(`${API}/search/filters`, arg);

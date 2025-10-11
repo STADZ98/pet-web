@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { listProductBy } from "../../api/product";
+import useEcomStore from "../../store/ecom-store";
 import ProductCard from "../card/ProductCard";
 import SwiperShowProduct from "../../utils/SwiperShowProduct";
 import { SwiperSlide } from "swiper/react";
@@ -8,21 +8,25 @@ const BestSeller = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  const fetchProducts = useEcomStore((s) => s.fetchProducts);
 
-  const loadData = async () => {
-    try {
-      const res = await listProductBy("sold", "desc", 10);
-      setData(res.data || []);
-    } catch (err) {
-      console.error("เกิดข้อผิดพลาดในการโหลดสินค้าขายดี", err);
-      setData([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    let ignore = false;
+    (async () => {
+      try {
+        const items = await fetchProducts("sold", "desc", 10);
+        if (!ignore) setData(items || []);
+      } catch (err) {
+        console.error("เกิดข้อผิดพลาดในการโหลดสินค้าขายดี", err);
+        if (!ignore) setData([]);
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    })();
+    return () => {
+      ignore = true;
+    };
+  }, [fetchProducts]);
 
   return (
     <section className="my-12" aria-labelledby="bestseller-heading">

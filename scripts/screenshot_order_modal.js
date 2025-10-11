@@ -34,7 +34,13 @@ const puppeteer = require("puppeteer");
           found = true;
           break;
         }
-      } catch (e) {}
+      } catch (e) {
+        // log and continue trying other admin paths
+        console.debug(
+          `screenshot script: failed to open ${p}:`,
+          e?.message || e
+        );
+      }
     }
 
     if (!found) {

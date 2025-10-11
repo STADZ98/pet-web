@@ -136,7 +136,13 @@ const ManageSubSubcategoriesModal = ({
         let errorData = {};
         try {
           errorData = await response.json();
-        } catch {}
+        } catch (err) {
+          // ignore JSON parse errors
+          console.debug(
+            "Failed to parse error response JSON",
+            err?.message || err
+          );
+        }
         throw new Error(errorData.message || "Failed to update subsubcategory");
       }
       toast.success("อัปเดตชื่อหมวดหมู่ย่อยระดับ 2 สำเร็จ!");
@@ -171,7 +177,13 @@ const ManageSubSubcategoriesModal = ({
         let errorData = {};
         try {
           errorData = await response.json();
-        } catch {}
+        } catch (err) {
+          // ignore JSON parse errors
+          console.debug(
+            "Failed to parse error response JSON",
+            err?.message || err
+          );
+        }
         throw new Error(errorData.message || "Failed to delete subsubcategory");
       }
       toast.success("ลบหมวดหมู่ย่อยระดับ 2 สำเร็จ!");
