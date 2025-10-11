@@ -60,6 +60,8 @@ const SubSubCategoryPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [subSubcategoryIdToDelete, setSubSubcategoryIdToDelete] =
     useState(null);
+  const [forceModalOpen, setForceModalOpen] = useState(false);
+  const [relatedInfo, setRelatedInfo] = useState(null);
 
   const [editState, dispatch] = useReducer(editReducer, {
     id: null,
@@ -234,14 +236,21 @@ const SubSubCategoryPage = () => {
         }
       );
       if (!res.ok) {
-        let errMsg = "เกิดข้อผิดพลาด";
+        // If server returns relatedCount, prompt for force-delete
+        let errBody = null;
         try {
-          const errBody = await res.json();
-          errMsg = errBody?.message || res.statusText || errMsg;
+          errBody = await res.json();
         } catch (parseErr) {
           console.error("Error parsing error response (delete):", parseErr);
-          errMsg = res.statusText || errMsg;
         }
+        if (errBody && errBody.relatedCount) {
+          setRelatedInfo({ relatedCount: errBody.relatedCount });
+          setIsModalOpen(false);
+          setForceModalOpen(true);
+          return; // stop here until admin confirms force-delete
+        }
+        const errMsg =
+          (errBody && errBody.message) || res.statusText || "เกิดข้อผิดพลาด";
         throw new Error(errMsg);
       }
       toast.success("ลบสำเร็จ");
@@ -255,6 +264,47 @@ const SubSubCategoryPage = () => {
     } finally {
       setIsDeleting(false);
       setIsModalOpen(false);
+    }
+  };
+
+  const confirmForceDelete = async () => {
+    // call delete with force=true
+    setIsDeleting(true);
+    try {
+      const res = await fetch(
+        `${API}/subsubcategory/${subSubcategoryIdToDelete}?force=true`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: token ? `Bearer ${token}` : undefined,
+          },
+        }
+      );
+      if (!res.ok) {
+        let errMsg = "เกิดข้อผิดพลาด";
+        try {
+          const errBody = await res.json();
+          errMsg = errBody?.message || res.statusText || errMsg;
+        } catch (parseErr) {
+          console.error(
+            "Error parsing error response (force delete):",
+            parseErr
+          );
+          errMsg = res.statusText || errMsg;
+        }
+        throw new Error(errMsg);
+      }
+      toast.success("ลบสำเร็จ (สินค้าที่เกี่ยวข้องถูกยกเลิกการเชื่อมโยง)");
+      const updatedSubSubcategories = await fetch(`${API}/subsubcategory`).then(
+        (res) => res.json()
+      );
+      setSubSubcategories(updatedSubSubcategories);
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setIsDeleting(false);
+      setForceModalOpen(false);
+      setSubSubcategoryIdToDelete(null);
     }
   };
 
@@ -542,6 +592,40 @@ const SubSubCategoryPage = () => {
                 disabled={isDeleting}
               >
                 {isDeleting ? "กำลังลบ..." : "ยืนยัน"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Force Delete Confirmation Modal (when related products exist) */}
+      {forceModalOpen && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex justify-center items-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-xl w-96 text-center">
+            <h3 className="text-xl font-bold mb-4">สินค้าที่เกี่ยวข้องพบ</h3>
+            <p className="text-gray-700 mb-4">
+              มีสินค้า <strong>{relatedInfo?.relatedCount || 0}</strong>{" "}
+              ชิ้นที่เชื่อมโยงกับหมวดหมู่นี้ เมื่อทำการบังคับลบ
+              สินค้าเหล่านี้จะถูกยกเลิกการเชื่อมโยง (sub-subcategory
+              จะถูกตั้งเป็นว่าง)
+            </p>
+            <p className="text-red-600 mb-6">
+              คุณแน่ใจที่จะดำเนินการต่อและยกเลิกการเชื่อมโยงสินค้าที่เกี่ยวข้องหรือไม่?
+            </p>
+            <div className="flex justify-center gap-3">
+              <button
+                onClick={() => setForceModalOpen(false)}
+                className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition"
+                disabled={isDeleting}
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={confirmForceDelete}
+                className="px-4 py-2 text-white bg-red-600 rounded-md hover:bg-red-700 transition"
+                disabled={isDeleting}
+              >
+                {isDeleting ? "กำลังลบ..." : "ยืนยันและยกเลิกการเชื่อมโยง"}
               </button>
             </div>
           </div>
