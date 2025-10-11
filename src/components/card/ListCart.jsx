@@ -2,7 +2,7 @@ import React, { useCallback, useMemo } from "react";
 import { ShoppingCart, ArrowLeft, LogIn } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { motion as m } from "framer-motion";
+// framer-motion removed for performance
 
 import useEcomeStore from "../../store/ecom-store";
 import { createUserCart } from "../../api/user";
@@ -105,31 +105,20 @@ const ListCart = () => {
           <section className="lg:col-span-2 space-y-6">
             {/* 5. Clean up conditional rendering logic */}
             {totalItems === 0 ? (
-              <m.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-stone-50 rounded-2xl shadow-inner p-12 text-center text-stone-400 text-xl font-medium border border-stone-100 flex flex-col items-center justify-center min-h-[200px]"
-              >
+              <div className="bg-stone-50 rounded-2xl shadow-inner p-12 text-center text-stone-400 text-xl font-medium border border-stone-100 flex flex-col items-center justify-center min-h-[200px]">
                 <ShoppingCart size={64} className="mb-4 text-stone-300" />
                 <p>ไม่มีสินค้าในตะกร้า</p>
                 <Link to="/" className="mt-6">
-                  <m.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="px-6 py-3 bg-amber-600 text-white rounded-lg shadow-md hover:bg-amber-700 transition-colors flex items-center gap-2"
-                  >
+                  <button className="px-6 py-3 bg-amber-600 text-white rounded-lg shadow-md hover:bg-amber-700 transition-colors flex items-center gap-2">
                     <ArrowLeft size={20} /> กลับไปเลือกซื้อสินค้า
-                  </m.button>
+                  </button>
                 </Link>
-              </m.div>
+              </div>
             ) : (
               <ul className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                 {carts.map((item, index) => (
-                  <m.li
+                  <li
                     key={item._id || index}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.05 }}
                     className="bg-stone-50 p-5 rounded-xl shadow flex flex-col sm:flex-row items-center sm:items-start gap-5 hover:shadow-md transition border border-stone-100"
                   >
                     {/* Product Image */}
@@ -179,7 +168,7 @@ const ListCart = () => {
                     <div className="font-extrabold text-2xl text-yellow-500 ml-auto whitespace-nowrap pt-2 sm:pt-0">
                       {numberFormat(item.price * item.count)} ฿
                     </div>
-                  </m.li>
+                  </li>
                 ))}
               </ul>
             )}
@@ -200,9 +189,7 @@ const ListCart = () => {
             </div>
             <div className="flex flex-col gap-4">
               {user ? (
-                <m.button
-                  whileHover={{ scale: 1.01 }}
-                  whileTap={{ scale: 0.98 }}
+                <button
                   disabled={totalItems < 1}
                   onClick={handleSaveCart}
                   className={`${buttonClass}
@@ -214,28 +201,24 @@ const ListCart = () => {
                   aria-disabled={totalItems < 1}
                 >
                   ดำเนินการชำระเงิน
-                </m.button>
+                </button>
               ) : (
                 <Link to="/login" className="w-full">
-                  <m.button
-                    whileHover={{ scale: 1.01 }}
-                    whileTap={{ scale: 0.98 }}
+                  <button
                     className={`${buttonClass} bg-amber-500 hover:bg-amber-600 text-white`}
                   >
                     <LogIn size={20} />
                     เข้าสู่ระบบเพื่อสั่งซื้อ
-                  </m.button>
+                  </button>
                 </Link>
               )}
-              <m.button
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.98 }}
+              <button
                 onClick={handleGoBack}
                 className={`${buttonClass} bg-stone-200 hover:bg-stone-300 text-stone-800`}
               >
                 <ArrowLeft size={20} />
                 กลับไปเลือกสินค้า
-              </m.button>
+              </button>
             </div>
           </aside>
         </div>
