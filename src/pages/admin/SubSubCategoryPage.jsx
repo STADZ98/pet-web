@@ -134,8 +134,18 @@ const SubSubCategoryPage = () => {
           images: imageBase64,
         }),
       });
-      if (!res.ok)
-        throw new Error((await res.json()).message || "เกิดข้อผิดพลาด");
+      if (!res.ok) {
+        // defensive parsing of error body
+        let errMsg = "เกิดข้อผิดพลาด";
+        try {
+          const errBody = await res.json();
+          errMsg = errBody?.message || res.statusText || errMsg;
+        } catch (parseErr) {
+          console.error("Error parsing error response (submit):", parseErr);
+          errMsg = res.statusText || errMsg;
+        }
+        throw new Error(errMsg);
+      }
       toast.success("เพิ่มหมวดหมู่ย่อยสำเร็จ");
       setName("");
       setSubcategoryId("");
@@ -181,8 +191,17 @@ const SubSubCategoryPage = () => {
           images: imageData,
         }),
       });
-      if (!res.ok)
-        throw new Error((await res.json()).message || "เกิดข้อผิดพลาด");
+      if (!res.ok) {
+        let errMsg = "เกิดข้อผิดพลาด";
+        try {
+          const errBody = await res.json();
+          errMsg = errBody?.message || res.statusText || errMsg;
+        } catch (parseErr) {
+          console.error("Error parsing error response (save edit):", parseErr);
+          errMsg = res.statusText || errMsg;
+        }
+        throw new Error(errMsg);
+      }
       toast.success("แก้ไขสำเร็จ");
       dispatch({ type: "RESET" });
       const updatedSubSubcategories = await fetch(`${API}/subsubcategory`).then(
@@ -214,8 +233,17 @@ const SubSubCategoryPage = () => {
           },
         }
       );
-      if (!res.ok)
-        throw new Error((await res.json()).message || "เกิดข้อผิดพลาด");
+      if (!res.ok) {
+        let errMsg = "เกิดข้อผิดพลาด";
+        try {
+          const errBody = await res.json();
+          errMsg = errBody?.message || res.statusText || errMsg;
+        } catch (parseErr) {
+          console.error("Error parsing error response (delete):", parseErr);
+          errMsg = res.statusText || errMsg;
+        }
+        throw new Error(errMsg);
+      }
       toast.success("ลบสำเร็จ");
       // Refresh sub-subcategory list
       const updatedSubSubcategories = await fetch(`${API}/subsubcategory`).then(
