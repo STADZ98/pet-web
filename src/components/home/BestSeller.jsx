@@ -15,7 +15,7 @@ const BestSeller = () => {
   const loadData = async () => {
     try {
       const res = await listProductBy("sold", "desc", 10);
-      setData(Array.isArray(res?.data) ? res.data : []);
+      setData(res.data || []);
     } catch (err) {
       console.error("เกิดข้อผิดพลาดในการโหลดสินค้าขายดี", err);
       setData([]);

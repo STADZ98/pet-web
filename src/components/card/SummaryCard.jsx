@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-// framer-motion removed for performance
+import { motion } from "framer-motion";
 import { Dialog } from "@headlessui/react";
 import { listUserCart, getUserAddress } from "../../api/user";
 import axios from "axios";
@@ -308,7 +308,13 @@ const SummaryCard = () => {
           aria-hidden="true"
         />
         <div className="flex items-center justify-center min-h-screen px-4">
-          <div className="relative bg-white rounded-2xl shadow-2xl max-w-lg w-full mx-auto p-8 z-50">
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="relative bg-white rounded-2xl shadow-2xl max-w-lg w-full mx-auto p-8 z-50"
+          >
             <Dialog.Title className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
               <Home className="w-6 h-6 text-amber-700" />
               {editingIdx === null ? "เพิ่มที่อยู่ใหม่" : "แก้ไขที่อยู่"}
@@ -357,20 +363,27 @@ const SummaryCard = () => {
                 />
               </div>
               <div className="flex gap-3 pt-2">
-                <button onClick={hdlSaveAddress} className={buttonPrimaryClass}>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={hdlSaveAddress}
+                  className={buttonPrimaryClass}
+                >
                   <Save className="w-5 h-5" />
                   {editingIdx === null ? "บันทึกที่อยู่" : "บันทึกการแก้ไข"}
-                </button>
-                <button
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={() => setModalOpen(false)}
                   className={buttonSecondaryClass}
                 >
                   <XCircle className="w-5 h-5" />
                   ยกเลิก
-                </button>
+                </motion.button>
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
       </Dialog>
       <div className="max-w-6xl mx-auto py-12 px-4 md:px-6">

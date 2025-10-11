@@ -204,18 +204,13 @@ const ListCart = () => {
                 </button>
               ) : (
                 <Link to="/login" className="w-full">
-                  <button
-                    className={`${buttonClass} bg-amber-500 hover:bg-amber-600 text-white`}
-                  >
+                  <button className={`${buttonClass} bg-amber-500 hover:bg-amber-600 text-white`}>
                     <LogIn size={20} />
                     เข้าสู่ระบบเพื่อสั่งซื้อ
                   </button>
                 </Link>
               )}
-              <button
-                onClick={handleGoBack}
-                className={`${buttonClass} bg-stone-200 hover:bg-stone-300 text-stone-800`}
-              >
+              <button onClick={handleGoBack} className={`${buttonClass} bg-stone-200 hover:bg-stone-300 text-stone-800`}>
                 <ArrowLeft size={20} />
                 กลับไปเลือกสินค้า
               </button>

@@ -99,8 +99,7 @@ const ecomStore = (set, get) => ({
       let token = get().token || null; // ใช้ token จาก store ถ้าไม่มี
       let sort = "createdAt";
       let order = "desc";
-      // Default to a smaller page size for storefront listing to reduce payload
-      let limit = 24;
+      let limit = 50;
 
       if (args.length === 1) {
         if (typeof args[0] === "string") token = args[0];
@@ -119,41 +118,8 @@ const ecomStore = (set, get) => ({
         limit = args[2] ?? limit;
       }
 
-      // Fetch products and categories/brands in parallel to reduce round-trips
-      const promises = [listProductBy(token, sort, order, limit)];
-      // only fetch categories/brands if not already present to avoid extra work
-      if ((get().categories || []).length === 0) promises.push(listCategory());
-      if ((get().brands || []).length === 0) promises.push(listBrand());
-
-      const results = await Promise.all(promises);
-      const productRes = results[0];
-      // Defensive: ensure we only set arrays for products/categories/brands
-      const productsData = Array.isArray(productRes?.data)
-        ? productRes.data
-        : [];
-      if (!Array.isArray(productRes?.data))
-        console.warn(
-          "getProduct: unexpected product response shape:",
-          productRes && productRes.data ? productRes.data : productRes
-        );
-      set({ products: productsData });
-      // optional: set categories/brands if those requests were done
-      if (results[1] && Array.isArray(results[1].data)) {
-        set({ categories: results[1].data });
-      } else if (results[1] && results[1].data) {
-        console.warn(
-          "getProduct: unexpected categories response shape:",
-          results[1].data
-        );
-      }
-      if (results[2] && Array.isArray(results[2].data)) {
-        set({ brands: results[2].data });
-      } else if (results[2] && results[2].data) {
-        console.warn(
-          "getProduct: unexpected brands response shape:",
-          results[2].data
-        );
-      }
+      const res = await listProductBy(token, sort, order, limit);
+      set({ products: res.data || [] });
     } catch (err) {
       console.error("getProduct error:", err.response?.data || err.message);
       set({ products: [] });
@@ -169,7 +135,7 @@ const ecomStore = (set, get) => ({
       };
       set({ filters });
       const res = await searchFilters(filters);
-      set({ products: Array.isArray(res.data) ? res.data : [] });
+      set({ products: res.data || [] });
     } catch (err) {
       console.error("Error applying filters:", err);
     }
@@ -179,8 +145,7 @@ const ecomStore = (set, get) => ({
   getCategory: async () => {
     try {
       const res = await listCategory();
-      if (Array.isArray(res.data)) set({ categories: res.data });
-      else console.warn("getCategory: unexpected response shape:", res.data);
+      set({ categories: res.data });
     } catch (err) {
       console.error("Error fetching categories:", err);
     }
@@ -189,8 +154,7 @@ const ecomStore = (set, get) => ({
   getBrands: async () => {
     try {
       const res = await listBrand();
-      if (Array.isArray(res.data)) set({ brands: res.data });
-      else console.warn("getBrands: unexpected response shape:", res.data);
+      set({ brands: res.data });
     } catch (err) {
       console.error("Error fetching brands:", err);
     }
@@ -199,11 +163,7 @@ const ecomStore = (set, get) => ({
   getSubcategories: async () => {
     try {
       const res = await axios.get(`${API}/subcategory`);
-      if (Array.isArray(res.data)) set({ subcategories: res.data });
-      else {
-        console.warn("getSubcategories: unexpected response shape:", res.data);
-        set({ subcategories: [] });
-      }
+      set({ subcategories: res.data });
     } catch (err) {
       console.error("Error fetching subcategories:", err);
       set({ subcategories: [] });
@@ -213,14 +173,7 @@ const ecomStore = (set, get) => ({
   getSubsubcategories: async () => {
     try {
       const res = await axios.get(`${API}/subsubcategory`);
-      if (Array.isArray(res.data)) set({ subsubcategories: res.data });
-      else {
-        console.warn(
-          "getSubsubcategories: unexpected response shape:",
-          res.data
-        );
-        set({ subsubcategories: [] });
-      }
+      set({ subsubcategories: res.data });
     } catch (err) {
       console.error("Error fetching subsubcategories:", err);
       set({ subsubcategories: [] });

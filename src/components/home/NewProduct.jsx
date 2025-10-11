@@ -15,7 +15,7 @@ const NewProduct = () => {
   const loadData = async () => {
     try {
       const res = await listProductBy("updatedAt", "desc", 10);
-      setData(Array.isArray(res?.data) ? res.data : []);
+      setData(res.data || []);
     } catch (err) {
       console.error("เกิดข้อผิดพลาดในการโหลดสินค้าใหม่", err);
       setData([]);

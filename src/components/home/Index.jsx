@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SwiperSlide } from "swiper/react";
-// Removed framer-motion for performance: use static elements and CSS transitions instead
+import { motion as Motion, AnimatePresence } from "framer-motion";
 import {
   ShoppingCart,
   Truck,
@@ -196,22 +196,40 @@ const HeroCarousel = ({ images }) => {
   return (
     <section className="relative w-full max-w-7xl mx-auto pt-8 px-4 sm:px-6 lg:px-8">
       <div className="relative rounded-3xl overflow-hidden shadow-2xl bg-white/5 group">
-        <img
-          key={current}
-          src={images[current].url}
-          alt={images[current].title}
-          className="w-full h-[360px] sm:h-[460px] object-cover transition-opacity duration-500 ease-out"
-        />
+        <AnimatePresence mode="wait">
+          <Motion.img
+            key={current}
+            src={images[current].url}
+            alt={images[current].title}
+            initial={{ opacity: 0, scale: 1.02 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0.2, scale: 1.01 }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
+            className="w-full h-[360px] sm:h-[460px] object-cover"
+          />
+        </AnimatePresence>
 
         {/* Overlay */}
         <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/25 to-transparent" />
         <div className="absolute inset-0 flex flex-col justify-center px-6 sm:px-16">
-          <h1 className="text-3xl sm:text-5xl font-extrabold text-white drop-shadow mb-3 leading-tight transition-transform duration-300">
+          <Motion.h1
+            key={`title-${current}`}
+            initial={{ y: 16, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ duration: 0.5 }}
+            className="text-3xl sm:text-5xl font-extrabold text-white drop-shadow mb-3 leading-tight"
+          >
             {images[current].title}
-          </h1>
-          <p className="text-base sm:text-lg text-white/90 mb-6 max-w-2xl transition-transform duration-300">
+          </Motion.h1>
+          <Motion.p
+            key={`desc-${current}`}
+            initial={{ y: 16, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.05 }}
+            className="text-base sm:text-lg text-white/90 mb-6 max-w-2xl"
+          >
             {images[current].desc}
-          </p>
+          </Motion.p>
           <div className="flex items-center gap-4">
             <button
               onClick={() => navigate("/shop")}
@@ -297,9 +315,13 @@ const FeatureGrid = () => (
           title: "โปรโมชั่นพิเศษ",
           desc: "ข้อเสนอพิเศษและโปรโมชั่นสุดคุ้ม ที่คุณไม่ควรพลาด",
         },
-      ].map((f) => (
-        <div
+      ].map((f, i) => (
+        <Motion.div
           key={f.title}
+          initial={{ opacity: 0, y: 10 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.4, delay: i * 0.05 }}
           className="flex flex-col items-center text-center bg-white rounded-2xl shadow-sm p-6 transition-transform hover:-translate-y-1 hover:shadow-lg border border-gray-100 min-h-[160px]"
         >
           <div className="w-14 h-14 bg-gradient-to-br from-orange-100 to-yellow-50 text-orange-600 mb-4 flex items-center justify-center rounded-full shadow-inner">
@@ -309,7 +331,7 @@ const FeatureGrid = () => (
             {f.title}
           </h3>
           <p className="text-gray-500 text-sm mt-2">{f.desc}</p>
-        </div>
+        </Motion.div>
       ))}
     </div>
   </section>
@@ -468,8 +490,12 @@ const BrandGrid = ({ brands }) => {
               : `/img/logo/${brandImg}`;
 
           return (
-            <button
+            <Motion.button
               key={brand._id || brand.id}
+              initial={{ opacity: 0, y: 8 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.32 }}
               onClick={() =>
                 navigate(`/shop/brand?brand=${encodeURIComponent(brand.name)}`)
               }
@@ -500,7 +526,7 @@ const BrandGrid = ({ brands }) => {
                   แบรนด์แนะนำ
                 </span>
               )}
-            </button>
+            </Motion.button>
           );
         })}
       </div>
@@ -531,9 +557,13 @@ const ArticlesGrid = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {ARTICLES.map((article) => (
-          <article
+        {ARTICLES.map((article, idx) => (
+          <Motion.article
             key={article.id}
+            initial={{ opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.36, delay: idx * 0.04 }}
             className="group bg-white rounded-2xl shadow-sm hover:shadow-lg transition overflow-hidden flex flex-col"
           >
             <div className="relative w-full aspect-[16/9] overflow-hidden">
@@ -576,7 +606,7 @@ const ArticlesGrid = () => {
                 </button>
               </div>
             </div>
-          </article>
+          </Motion.article>
         ))}
       </div>
     </section>
@@ -736,7 +766,7 @@ const CategoryOverview = ({ categories, subcategories }) => {
 
               return (
                 <li key={catId} role="listitem">
-                  <div
+                  <Motion.div
                     role="button"
                     tabIndex={0}
                     onClick={() =>
@@ -751,6 +781,11 @@ const CategoryOverview = ({ categories, subcategories }) => {
                       }
                     }}
                     aria-label={`เข้าสู่หมวดหมู่ ${cat.name}`}
+                    initial={{ opacity: 0, y: 8 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    whileHover={{ scale: 1.02 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.28 }}
                     className="group bg-gradient-to-br from-white to-orange-50 rounded-2xl p-4 shadow-sm hover:shadow-lg transform hover:-translate-y-1 transition border border-orange-100 cursor-pointer flex flex-col items-center text-center h-52 relative overflow-hidden"
                   >
                     {/* Decorative background accent */}
@@ -835,7 +870,7 @@ const CategoryOverview = ({ categories, subcategories }) => {
                         </span>
                       </div>
                     )}
-                  </div>
+                  </Motion.div>
                 </li>
               );
             })}
@@ -944,34 +979,42 @@ const ConsultationSection = () => {
   );
 };
 
-const CartOverlay = ({ open, onClose }) => {
-  if (!open) return null;
-  return (
-    <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4"
-      onClick={onClose}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-3xl bg-white h-full md:h-[90vh] md:rounded-2xl p-6 shadow-2xl overflow-y-auto"
+const CartOverlay = ({ open, onClose }) => (
+  <AnimatePresence>
+    {open && (
+      <Motion.div
+        className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4"
+        onClick={onClose}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
       >
-        <div className="flex items-center justify-between mb-4">
-          <h4 className="text-lg font-bold text-gray-800">
-            ตะกร้าสินค้าของคุณ
-          </h4>
-          <button
-            className="text-gray-600 hover:text-gray-900"
-            onClick={onClose}
-            aria-label="ปิดตะกร้าสินค้า"
-          >
-            <X className="w-6 h-6" />
-          </button>
-        </div>
-        <CartCard />
-      </div>
-    </div>
-  );
-};
+        <Motion.div
+          onClick={(e) => e.stopPropagation()}
+          className="w-full max-w-3xl bg-white h-full md:h-[90vh] md:rounded-2xl p-6 shadow-2xl overflow-y-auto"
+          initial={{ opacity: 0, scale: 0.98, y: 10 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.98, y: 10 }}
+          transition={{ duration: 0.25 }}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="text-lg font-bold text-gray-800">
+              ตะกร้าสินค้าของคุณ
+            </h4>
+            <button
+              className="text-gray-600 hover:text-gray-900"
+              onClick={onClose}
+              aria-label="ปิดตะกร้าสินค้า"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+          <CartCard />
+        </Motion.div>
+      </Motion.div>
+    )}
+  </AnimatePresence>
+);
 
 // -----------------------------------------------------------------------------
 // Page
