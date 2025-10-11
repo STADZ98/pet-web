@@ -1,12 +1,10 @@
 // src/components/card/ProductCard.jsx
 import React, { memo, useState, useEffect, useRef } from "react";
 import { ShoppingCart, Heart, Eye, X } from "lucide-react";
-import { motion as Motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import useEcomStore from "../../store/ecom-store";
 import { numberFormat } from "../../utils/number";
 import PropTypes from "prop-types";
-import { createPortal } from "react-dom";
 
 // Inline light SVG fallback (avoids network request and dark/black placeholder)
 const FALLBACK_IMAGE = `data:image/svg+xml;utf8,${encodeURIComponent(
@@ -22,34 +20,18 @@ const secureImageUrl = (url) => {
 
 // QuickView Modal
 const QuickViewModal = ({ item, onClose, onAddToCart }) => {
-  const [imageIndex, setImageIndex] = useState(0);
   const [qty, setQty] = useState(1);
   const closeBtnRef = useRef(null);
-  const triggerRef = useRef(null);
   const actionAddtoCart = useEcomStore((state) => state.actionAddtoCart);
 
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === "Escape") onClose();
     };
-    triggerRef.current = document.activeElement;
     window.addEventListener("keydown", onKey);
     setTimeout(() => closeBtnRef.current?.focus?.(), 60);
-
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      try {
-        triggerRef.current?.focus?.();
-      } catch {
-        // ignore focus restore errors
-      }
-    };
+    return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
-
-  const handleImageError = (e) => {
-    e.target.onerror = null;
-    e.target.src = FALLBACK_IMAGE;
-  };
 
   const handleAddToCart = () => {
     actionAddtoCart({ ...item, qty });
@@ -57,7 +39,9 @@ const QuickViewModal = ({ item, onClose, onAddToCart }) => {
     onClose();
   };
 
-  const modalContent = (
+  const imageUrl = secureImageUrl(item.images?.[0]?.url || item.image || null);
+
+  return (
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
       role="dialog"
@@ -65,63 +49,24 @@ const QuickViewModal = ({ item, onClose, onAddToCart }) => {
       aria-label={`Quick view: ${item.title || "สินค้า"}`}
       onClick={onClose}
     >
-      <Motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
-      />
-
-      <Motion.div
+      <div className="absolute inset-0 bg-black/50" />
+      <div
         className="relative z-10 w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
         onClick={(e) => e.stopPropagation()}
-        initial={{ opacity: 0, y: 18, scale: 0.98 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 12, scale: 0.995 }}
-        transition={{
-          duration: 0.22,
-          type: "spring",
-          stiffness: 260,
-          damping: 24,
-        }}
         role="document"
       >
         <div className="md:col-span-1 lg:col-span-2 relative bg-gray-50 flex flex-col items-center justify-center p-6 lg:p-12">
           <img
-            src={secureImageUrl(
-              item.images?.[imageIndex]?.url || item.images?.[0]?.url
-            )}
+            src={imageUrl}
             alt={item.title || "ไม่มีภาพสินค้า"}
             className="max-h-96 object-contain w-full rounded-lg shadow-lg"
             width={640}
             height={384}
-            onError={handleImageError}
+            onError={(e) => {
+              e.target.onerror = null;
+              e.target.src = FALLBACK_IMAGE;
+            }}
           />
-
-          {item.images && item.images.length > 1 && (
-            <>
-              <button
-                onClick={() =>
-                  setImageIndex(
-                    (i) => (i - 1 + item.images.length) % item.images.length
-                  )
-                }
-                className="absolute left-4 top-1/2 -translate-y-1/2 z-20 bg-white/70 hover:bg-white p-3 rounded-full shadow-md transition"
-                aria-label="ก่อนหน้า"
-              >
-                <span className="text-2xl font-bold text-gray-700">‹</span>
-              </button>
-              <button
-                onClick={() =>
-                  setImageIndex((i) => (i + 1) % item.images.length)
-                }
-                className="absolute right-4 top-1/2 -translate-y-1/2 z-20 bg-white/70 hover:bg-white p-3 rounded-full shadow-md transition"
-                aria-label="ถัดไป"
-              >
-                <span className="text-2xl font-bold text-gray-700">›</span>
-              </button>
-            </>
-          )}
         </div>
 
         <div className="p-6 md:p-8 flex flex-col justify-between col-span-1">
@@ -189,7 +134,7 @@ const QuickViewModal = ({ item, onClose, onAddToCart }) => {
 
               <button
                 onClick={handleAddToCart}
-                className="flex-1 px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold rounded-xl shadow-lg transition-all"
+                className="flex-1 px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white font-semibold rounded-xl shadow-lg transition-all"
               >
                 <ShoppingCart className="inline-block w-5 h-5 mr-2" />
                 <span>เพิ่มลงในตะกร้า</span>
@@ -197,15 +142,9 @@ const QuickViewModal = ({ item, onClose, onAddToCart }) => {
             </div>
           </div>
         </div>
-      </Motion.div>
+      </div>
     </div>
   );
-
-  if (typeof document !== "undefined") {
-    return createPortal(modalContent, document.body);
-  }
-
-  return modalContent;
 };
 
 // ProductCard
