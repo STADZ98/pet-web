@@ -25,6 +25,9 @@ const Shop = () => {
   const getProduct = useEcomStore((state) => state.getProduct);
   const products = useEcomStore((state) => state.products);
   const categories = useEcomStore((state) => state.categories || []);
+  const getCategory = useEcomStore((s) => s.getCategory);
+  const getSubcategories = useEcomStore((s) => s.getSubcategories);
+  const getSubsubcategories = useEcomStore((s) => s.getSubsubcategories);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("popular");
@@ -33,8 +36,33 @@ const Shop = () => {
 
   // Fetch products on mount
   useEffect(() => {
-    getProduct();
-  }, [getProduct]);
+    // Ensure taxonomy is hydrated (only if empty)
+    if (!categories?.length) getCategory?.();
+    if (!useEcomStore.getState().subcategories?.length) getSubcategories?.();
+    if (!useEcomStore.getState().subsubcategories?.length)
+      getSubsubcategories?.();
+
+    // Load a small initial page of products quickly, and warm cache for widgets
+    // getProduct will use the store cache if available; pass limit to reduce payload/time
+    try {
+      getProduct?.(24);
+    } catch (e) {
+      console.debug("Shop: getProduct initial load failed", e?.message || e);
+    }
+
+    // Warm cache for common lists used across the site (non-blocking)
+    const fetchProducts = useEcomStore.getState().fetchProducts;
+    if (fetchProducts) {
+      fetchProducts("sold", "desc", 12).catch(() => {});
+      fetchProducts("updatedAt", "desc", 12).catch(() => {});
+    }
+  }, [
+    getProduct,
+    getCategory,
+    getSubcategories,
+    getSubsubcategories,
+    categories,
+  ]);
 
   // Compute product count per category
   const productCountMap = useMemo(() => {

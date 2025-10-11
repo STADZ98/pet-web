@@ -385,7 +385,7 @@ const FeatureGrid = () => (
   </section>
 );
 
-const CategorySwiperSection = ({ categories, subcategories }) => {
+const CategorySwiperSection = ({ categories, subcategoriesMap }) => {
   const navigate = useNavigate();
   if (!categories?.length) {
     return (
@@ -407,9 +407,7 @@ const CategorySwiperSection = ({ categories, subcategories }) => {
       </h2>
       {categories.map((cat) => {
         const catId = cat._id || cat.id;
-        const filteredSubs = (subcategories || []).filter(
-          (sub) => String(sub.categoryId) === String(catId)
-        );
+        const filteredSubs = subcategoriesMap?.[String(catId)] || [];
         if (!filteredSubs?.length) return null;
 
         const title = `หมวดหมู่ ${cat.name}`;
@@ -1081,6 +1079,17 @@ const Index = () => {
     brands,
   } = useProductData();
 
+  // build a map from categoryId -> list of subcategories for fast lookup
+  const subcategoriesMap = React.useMemo(() => {
+    const map = {};
+    (subcategories || []).forEach((s) => {
+      const key = String(s.categoryId || s.categoryId);
+      if (!map[key]) map[key] = [];
+      map[key].push(s);
+    });
+    return map;
+  }, [subcategories]);
+
   return (
     <div className="bg-gray-50 min-h-screen relative">
       {/* Hero */}
@@ -1102,7 +1111,7 @@ const Index = () => {
         {/* Category Swiper by Category */}
         <CategorySwiperSection
           categories={categories}
-          subcategories={subcategories}
+          subcategoriesMap={subcategoriesMap}
         />
 
         {/* Brands */}
