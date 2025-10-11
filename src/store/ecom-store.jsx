@@ -127,10 +127,33 @@ const ecomStore = (set, get) => ({
 
       const results = await Promise.all(promises);
       const productRes = results[0];
-      set({ products: productRes.data || [] });
+      // Defensive: ensure we only set arrays for products/categories/brands
+      const productsData = Array.isArray(productRes?.data)
+        ? productRes.data
+        : [];
+      if (!Array.isArray(productRes?.data))
+        console.warn(
+          "getProduct: unexpected product response shape:",
+          productRes && productRes.data ? productRes.data : productRes
+        );
+      set({ products: productsData });
       // optional: set categories/brands if those requests were done
-      if (results[1] && results[1].data) set({ categories: results[1].data });
-      if (results[2] && results[2].data) set({ brands: results[2].data });
+      if (results[1] && Array.isArray(results[1].data)) {
+        set({ categories: results[1].data });
+      } else if (results[1] && results[1].data) {
+        console.warn(
+          "getProduct: unexpected categories response shape:",
+          results[1].data
+        );
+      }
+      if (results[2] && Array.isArray(results[2].data)) {
+        set({ brands: results[2].data });
+      } else if (results[2] && results[2].data) {
+        console.warn(
+          "getProduct: unexpected brands response shape:",
+          results[2].data
+        );
+      }
     } catch (err) {
       console.error("getProduct error:", err.response?.data || err.message);
       set({ products: [] });
@@ -146,7 +169,7 @@ const ecomStore = (set, get) => ({
       };
       set({ filters });
       const res = await searchFilters(filters);
-      set({ products: res.data || [] });
+      set({ products: Array.isArray(res.data) ? res.data : [] });
     } catch (err) {
       console.error("Error applying filters:", err);
     }
@@ -156,7 +179,8 @@ const ecomStore = (set, get) => ({
   getCategory: async () => {
     try {
       const res = await listCategory();
-      set({ categories: res.data });
+      if (Array.isArray(res.data)) set({ categories: res.data });
+      else console.warn("getCategory: unexpected response shape:", res.data);
     } catch (err) {
       console.error("Error fetching categories:", err);
     }
@@ -165,7 +189,8 @@ const ecomStore = (set, get) => ({
   getBrands: async () => {
     try {
       const res = await listBrand();
-      set({ brands: res.data });
+      if (Array.isArray(res.data)) set({ brands: res.data });
+      else console.warn("getBrands: unexpected response shape:", res.data);
     } catch (err) {
       console.error("Error fetching brands:", err);
     }
@@ -174,7 +199,11 @@ const ecomStore = (set, get) => ({
   getSubcategories: async () => {
     try {
       const res = await axios.get(`${API}/subcategory`);
-      set({ subcategories: res.data });
+      if (Array.isArray(res.data)) set({ subcategories: res.data });
+      else {
+        console.warn("getSubcategories: unexpected response shape:", res.data);
+        set({ subcategories: [] });
+      }
     } catch (err) {
       console.error("Error fetching subcategories:", err);
       set({ subcategories: [] });
@@ -184,7 +213,14 @@ const ecomStore = (set, get) => ({
   getSubsubcategories: async () => {
     try {
       const res = await axios.get(`${API}/subsubcategory`);
-      set({ subsubcategories: res.data });
+      if (Array.isArray(res.data)) set({ subsubcategories: res.data });
+      else {
+        console.warn(
+          "getSubsubcategories: unexpected response shape:",
+          res.data
+        );
+        set({ subsubcategories: [] });
+      }
     } catch (err) {
       console.error("Error fetching subsubcategories:", err);
       set({ subsubcategories: [] });

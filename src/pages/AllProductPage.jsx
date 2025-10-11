@@ -12,15 +12,25 @@ const AllProductPage = () => {
 
   // โหลดหมวดหมู่หลัก
   useEffect(() => {
-    axios.get(`${API}/category`).then((res) => setCategories(res.data));
+    axios.get(`${API}/category`).then((res) => {
+      if (Array.isArray(res.data)) setCategories(res.data);
+      else {
+        console.warn(
+          "AllProductPage: unexpected categories response:",
+          res.data
+        );
+        setCategories([]);
+      }
+    });
   }, []);
 
   // โหลดหมวดหมู่ย่อยเมื่อเลือกหมวดหมู่หลัก
   useEffect(() => {
     if (selectedCategory) {
       axios.get(`${API}/subcategory`).then((res) => {
+        const list = Array.isArray(res.data) ? res.data : [];
         setSubcategories(
-          res.data.filter((s) => s.categoryId === selectedCategory.id)
+          list.filter((s) => s.categoryId === selectedCategory.id)
         );
       });
     }
