@@ -230,15 +230,13 @@ const ProductCard = ({ item, onAddToCart }) => {
         </div>
       </div>
 
-      <AnimatePresence>
-        {quickViewOpen && (
-          <QuickViewModal
-            item={item}
-            onClose={() => setQuickViewOpen(false)}
-            onAddToCart={onAddToCart}
-          />
-        )}
-      </AnimatePresence>
+      {quickViewOpen && (
+        <QuickViewModal
+          item={item}
+          onClose={() => setQuickViewOpen(false)}
+          onAddToCart={onAddToCart}
+        />
+      )}
     </>
   );
 };

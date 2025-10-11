@@ -944,42 +944,34 @@ const ConsultationSection = () => {
   );
 };
 
-const CartOverlay = ({ open, onClose }) => (
-  <AnimatePresence>
-    {open && (
-      <Motion.div
-        className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4"
-        onClick={onClose}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
+const CartOverlay = ({ open, onClose }) => {
+  if (!open) return null;
+  return (
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4"
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-3xl bg-white h-full md:h-[90vh] md:rounded-2xl p-6 shadow-2xl overflow-y-auto"
       >
-        <Motion.div
-          onClick={(e) => e.stopPropagation()}
-          className="w-full max-w-3xl bg-white h-full md:h-[90vh] md:rounded-2xl p-6 shadow-2xl overflow-y-auto"
-          initial={{ opacity: 0, scale: 0.98, y: 10 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.98, y: 10 }}
-          transition={{ duration: 0.25 }}
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h4 className="text-lg font-bold text-gray-800">
-              ตะกร้าสินค้าของคุณ
-            </h4>
-            <button
-              className="text-gray-600 hover:text-gray-900"
-              onClick={onClose}
-              aria-label="ปิดตะกร้าสินค้า"
-            >
-              <X className="w-6 h-6" />
-            </button>
-          </div>
-          <CartCard />
-        </Motion.div>
-      </Motion.div>
-    )}
-  </AnimatePresence>
-);
+        <div className="flex items-center justify-between mb-4">
+          <h4 className="text-lg font-bold text-gray-800">
+            ตะกร้าสินค้าของคุณ
+          </h4>
+          <button
+            className="text-gray-600 hover:text-gray-900"
+            onClick={onClose}
+            aria-label="ปิดตะกร้าสินค้า"
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+        <CartCard />
+      </div>
+    </div>
+  );
+};
 
 // -----------------------------------------------------------------------------
 // Page
