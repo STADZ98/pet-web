@@ -117,6 +117,7 @@ const useProductData = () => {
   const brands = useEcomStore((s) => s.brands || []);
   const getCategory = useEcomStore((s) => s.getCategory);
   const getSubcategories = useEcomStore((s) => s.getSubcategories);
+  const getSubsubcategories = useEcomStore((s) => s.getSubsubcategories);
   const getBrands = useEcomStore((s) => s.getBrands);
 
   // Load best sellers
@@ -161,10 +162,55 @@ const useProductData = () => {
 
   // Hydrate taxonomy lists
   useEffect(() => {
-    getCategory?.();
-    getSubcategories?.();
-    getBrands?.();
-  }, [getCategory, getSubcategories, getBrands]);
+    // Only fetch if store doesn't already have them to avoid redundant requests
+    if (!categories?.length) getCategory?.();
+    if (!subcategories?.length) getSubcategories?.();
+    if (!getSubsubcategories) {
+      // noop
+    } else if (!useEcomStore.getState().subsubcategories?.length) {
+      getSubsubcategories?.();
+    }
+    if (!brands?.length) getBrands?.();
+  }, [
+    getCategory,
+    getSubcategories,
+    getSubsubcategories,
+    getBrands,
+    categories,
+    subcategories,
+    brands,
+  ]);
+
+  // Prefetch product lists and warm up cache, then refresh global products once
+  useEffect(() => {
+    (async () => {
+      try {
+        const fetchProducts = useEcomStore.getState().fetchProducts;
+        // warm cache for lists used on home
+        await Promise.allSettled([
+          fetchProducts("sold", "desc", 12),
+          fetchProducts("updatedAt", "desc", 12),
+        ]);
+
+        // force refresh global products once (clear cache then load)
+        const clear = useEcomStore.getState().clearProductsCache;
+        const getProduct = useEcomStore.getState().getProduct;
+        try {
+          clear?.();
+          // load default product list into global store
+          await getProduct?.();
+        } catch (e) {
+          console.debug(
+            "Index prefetch: refresh global products failed",
+            e?.message || e
+          );
+        }
+      } catch (err) {
+        console.debug("Index prefetch failed", err?.message || err);
+      }
+    })();
+    return () => {};
+  }, []);
 
   return {
     bestSeller,
