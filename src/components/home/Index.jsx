@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 
 import useEcomStore from "../../store/ecom-store";
-// ...existing imports
+import { listProductBy } from "../../api/product";
 import ProductTabs from "./ProductTabs";
 import SwiperShowProduct from "../../utils/SwiperShowProduct";
 import CartCard from "../card/CartCard";
@@ -117,7 +117,6 @@ const useProductData = () => {
   const brands = useEcomStore((s) => s.brands || []);
   const getCategory = useEcomStore((s) => s.getCategory);
   const getSubcategories = useEcomStore((s) => s.getSubcategories);
-  const getSubsubcategories = useEcomStore((s) => s.getSubsubcategories);
   const getBrands = useEcomStore((s) => s.getBrands);
 
   // Load best sellers
@@ -125,9 +124,8 @@ const useProductData = () => {
     let ignore = false;
     (async () => {
       try {
-        const fetchProducts = useEcomStore.getState().fetchProducts;
-        const items = await fetchProducts("sold", "desc", 4);
-        if (!ignore) setBestSeller(items || []);
+        const res = await listProductBy("sold", "desc", 4);
+        if (!ignore) setBestSeller(res?.data || []);
       } catch (err) {
         if (!ignore) setBestSeller([]);
         console.error("Failed to load best sellers:", err);
@@ -145,9 +143,8 @@ const useProductData = () => {
     let ignore = false;
     (async () => {
       try {
-        const fetchProducts = useEcomStore.getState().fetchProducts;
-        const items = await fetchProducts("updatedAt", "desc", 3);
-        if (!ignore) setNewProduct(items || []);
+        const res = await listProductBy("updatedAt", "desc", 3);
+        if (!ignore) setNewProduct(res?.data || []);
       } catch (err) {
         if (!ignore) setNewProduct([]);
         console.error("Failed to load new products:", err);
@@ -162,139 +159,10 @@ const useProductData = () => {
 
   // Hydrate taxonomy lists
   useEffect(() => {
-    // Only fetch if store doesn't already have them to avoid redundant requests
-    if (!categories?.length) getCategory?.();
-    if (!subcategories?.length) getSubcategories?.();
-    if (!getSubsubcategories) {
-      // noop
-    } else if (!useEcomStore.getState().subsubcategories?.length) {
-      getSubsubcategories?.();
-    }
-    if (!brands?.length) getBrands?.();
-  }, [
-    getCategory,
-    getSubcategories,
-    getSubsubcategories,
-    getBrands,
-    categories,
-    subcategories,
-    brands,
-  ]);
-
-  // Prefetch product lists and warm up cache, then refresh global products once
-  useEffect(() => {
-    (async () => {
-      try {
-        const fetchProducts = useEcomStore.getState().fetchProducts;
-        // warm cache for lists used on home
-        await Promise.allSettled([
-          fetchProducts("sold", "desc", 12),
-          fetchProducts("updatedAt", "desc", 12),
-        ]);
-
-        // force refresh global products once (clear cache then load)
-        const clear = useEcomStore.getState().clearProductsCache;
-        const getProduct = useEcomStore.getState().getProduct;
-        try {
-          clear?.();
-          // load default product list into global store
-          await getProduct?.();
-        } catch (e) {
-          console.debug(
-            "Index prefetch: refresh global products failed",
-            e?.message || e
-          );
-        }
-      } catch (err) {
-        console.debug("Index prefetch failed", err?.message || err);
-      }
-    })();
-    return () => {};
-  }, []);
-
-  // Eagerly prefetch site-wide data used by other pages (Shop, Category, Brand, etc.)
-  useEffect(() => {
-  // mounted flag not required here
-
-    // small retry helper
-    const withRetries = async (fn, retries = 2, delay = 500) => {
-      let attempt = 0;
-      while (attempt <= retries) {
-        try {
-          return await fn();
-        } catch (err) {
-          attempt += 1;
-          if (attempt > retries) throw err;
-          await new Promise((res) => setTimeout(res, delay * attempt));
-        }
-      }
-    };
-
-    (async () => {
-      try {
-        // taxonomy
-        const getCategory = useEcomStore.getState().getCategory;
-        const getSubcategories = useEcomStore.getState().getSubcategories;
-        const getSubsubcategories = useEcomStore.getState().getSubsubcategories;
-        const getBrands = useEcomStore.getState().getBrands;
-
-        // product list warmups
-        const fetchProducts = useEcomStore.getState().fetchProducts;
-        const getProduct = useEcomStore.getState().getProduct;
-
-        // fetch taxonomy with retries but do not block render; errors are logged
-        try {
-          await withRetries(() => getCategory?.(), 2, 400);
-        } catch (err) {
-          console.debug("Index prefetch: getCategory failed", err?.message || err);
-        }
-
-        try {
-          await withRetries(() => getSubcategories?.(), 2, 400);
-        } catch (err) {
-          console.debug("Index prefetch: getSubcategories failed", err?.message || err);
-        }
-
-        try {
-          await withRetries(() => getSubsubcategories?.(), 2, 400);
-        } catch (err) {
-          console.debug("Index prefetch: getSubsubcategories failed", err?.message || err);
-        }
-
-        try {
-          await withRetries(() => getBrands?.(), 2, 400);
-        } catch (err) {
-          console.debug("Index prefetch: getBrands failed", err?.message || err);
-        }
-
-        // warm product caches (non-blocking failures)
-        if (fetchProducts) {
-          fetchProducts("sold", "desc", 12).catch((e) =>
-            console.debug("Index prefetch: sold list failed", e?.message || e)
-          );
-          fetchProducts("updatedAt", "desc", 12).catch((e) =>
-            console.debug("Index prefetch: updated list failed", e?.message || e)
-          );
-          fetchProducts("createdAt", "desc", 12).catch((e) =>
-            console.debug("Index prefetch: created list failed", e?.message || e)
-          );
-        }
-
-        // refresh global products but don't block UI
-        try {
-          await withRetries(() => getProduct?.(24), 1, 300);
-        } catch (err) {
-          console.debug("Index prefetch: getProduct failed", err?.message || err);
-        }
-      } catch (err) {
-        console.debug("Index prefetch: unexpected error", err?.message || err);
-      }
-    })();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
+    getCategory?.();
+    getSubcategories?.();
+    getBrands?.();
+  }, [getCategory, getSubcategories, getBrands]);
 
   return {
     bestSeller,
@@ -469,7 +337,7 @@ const FeatureGrid = () => (
   </section>
 );
 
-const CategorySwiperSection = ({ categories, subcategoriesMap }) => {
+const CategorySwiperSection = ({ categories, subcategories }) => {
   const navigate = useNavigate();
   if (!categories?.length) {
     return (
@@ -491,7 +359,9 @@ const CategorySwiperSection = ({ categories, subcategoriesMap }) => {
       </h2>
       {categories.map((cat) => {
         const catId = cat._id || cat.id;
-        const filteredSubs = subcategoriesMap?.[String(catId)] || [];
+        const filteredSubs = (subcategories || []).filter(
+          (sub) => String(sub.categoryId) === String(catId)
+        );
         if (!filteredSubs?.length) return null;
 
         const title = `หมวดหมู่ ${cat.name}`;
@@ -704,8 +574,7 @@ const ArticlesGrid = () => {
                 loading="lazy"
                 onError={(e) => {
                   e.currentTarget.onerror = null;
-                  // public/no-image.png exists in the project; use it as a fallback
-                  e.currentTarget.src = "/no-image.png";
+                  e.currentTarget.src = "/img/placeholder-article.jpg";
                 }}
               />
 
@@ -1163,17 +1032,6 @@ const Index = () => {
     brands,
   } = useProductData();
 
-  // build a map from categoryId -> list of subcategories for fast lookup
-  const subcategoriesMap = React.useMemo(() => {
-    const map = {};
-    (subcategories || []).forEach((s) => {
-      const key = String(s.categoryId || s.categoryId);
-      if (!map[key]) map[key] = [];
-      map[key].push(s);
-    });
-    return map;
-  }, [subcategories]);
-
   return (
     <div className="bg-gray-50 min-h-screen relative">
       {/* Hero */}
@@ -1195,7 +1053,7 @@ const Index = () => {
         {/* Category Swiper by Category */}
         <CategorySwiperSection
           categories={categories}
-          subcategoriesMap={subcategoriesMap}
+          subcategories={subcategories}
         />
 
         {/* Brands */}
