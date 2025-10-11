@@ -31,31 +31,52 @@ const Shop = () => {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("popular");
+  const [loading, setLoading] = useState(true);
   // no local searchParams needed in this view
   const navigate = useNavigate();
 
   // Fetch products on mount
   useEffect(() => {
     // Ensure taxonomy is hydrated (only if empty)
-    if (!categories?.length) getCategory?.();
-    if (!useEcomStore.getState().subcategories?.length) getSubcategories?.();
-    if (!useEcomStore.getState().subsubcategories?.length)
-      getSubsubcategories?.();
+    let mounted = true;
 
-    // Load a small initial page of products quickly, and warm cache for widgets
-    // getProduct will use the store cache if available; pass limit to reduce payload/time
-    try {
-      getProduct?.(24);
-    } catch (e) {
-      console.debug("Shop: getProduct initial load failed", e?.message || e);
-    }
+    const load = async () => {
+      try {
+        setLoading(true);
 
-    // Warm cache for common lists used across the site (non-blocking)
-    const fetchProducts = useEcomStore.getState().fetchProducts;
-    if (fetchProducts) {
-      fetchProducts("sold", "desc", 12).catch(() => {});
-      fetchProducts("updatedAt", "desc", 12).catch(() => {});
-    }
+        // taxonomy
+        if (!categories?.length) await getCategory?.();
+        if (!useEcomStore.getState().subcategories?.length)
+          await getSubcategories?.();
+        if (!useEcomStore.getState().subsubcategories?.length)
+          await getSubsubcategories?.();
+
+        // Load a small initial page of products quickly (await so we can show skeleton)
+        try {
+          await getProduct?.(24);
+        } catch (e) {
+          console.debug(
+            "Shop: getProduct initial load failed",
+            e?.message || e
+          );
+        }
+
+        // Warm cache for common lists used across the site (non-blocking)
+        const fetchProducts = useEcomStore.getState().fetchProducts;
+        if (fetchProducts) {
+          fetchProducts("sold", "desc", 12).catch(() => {});
+          fetchProducts("updatedAt", "desc", 12).catch(() => {});
+        }
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    load();
+
+    return () => {
+      mounted = false;
+    };
   }, [
     getProduct,
     getCategory,
@@ -199,7 +220,7 @@ const Shop = () => {
 
           {/* Categories Grid */}
           <section className="md:col-span-3">
-            {categories.length === 0 ? (
+            {loading || categories.length === 0 ? (
               <LoadingSkeleton />
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
