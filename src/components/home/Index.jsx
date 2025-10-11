@@ -214,7 +214,7 @@ const useProductData = () => {
 
   // Eagerly prefetch site-wide data used by other pages (Shop, Category, Brand, etc.)
   useEffect(() => {
-    // mounted flag not required here
+  // mounted flag not required here
 
     // small retry helper
     const withRetries = async (fn, retries = 2, delay = 500) => {
@@ -246,37 +246,25 @@ const useProductData = () => {
         try {
           await withRetries(() => getCategory?.(), 2, 400);
         } catch (err) {
-          console.debug(
-            "Index prefetch: getCategory failed",
-            err?.message || err
-          );
+          console.debug("Index prefetch: getCategory failed", err?.message || err);
         }
 
         try {
           await withRetries(() => getSubcategories?.(), 2, 400);
         } catch (err) {
-          console.debug(
-            "Index prefetch: getSubcategories failed",
-            err?.message || err
-          );
+          console.debug("Index prefetch: getSubcategories failed", err?.message || err);
         }
 
         try {
           await withRetries(() => getSubsubcategories?.(), 2, 400);
         } catch (err) {
-          console.debug(
-            "Index prefetch: getSubsubcategories failed",
-            err?.message || err
-          );
+          console.debug("Index prefetch: getSubsubcategories failed", err?.message || err);
         }
 
         try {
           await withRetries(() => getBrands?.(), 2, 400);
         } catch (err) {
-          console.debug(
-            "Index prefetch: getBrands failed",
-            err?.message || err
-          );
+          console.debug("Index prefetch: getBrands failed", err?.message || err);
         }
 
         // warm product caches (non-blocking failures)
@@ -285,16 +273,10 @@ const useProductData = () => {
             console.debug("Index prefetch: sold list failed", e?.message || e)
           );
           fetchProducts("updatedAt", "desc", 12).catch((e) =>
-            console.debug(
-              "Index prefetch: updated list failed",
-              e?.message || e
-            )
+            console.debug("Index prefetch: updated list failed", e?.message || e)
           );
           fetchProducts("createdAt", "desc", 12).catch((e) =>
-            console.debug(
-              "Index prefetch: created list failed",
-              e?.message || e
-            )
+            console.debug("Index prefetch: created list failed", e?.message || e)
           );
         }
 
@@ -302,17 +284,16 @@ const useProductData = () => {
         try {
           await withRetries(() => getProduct?.(24), 1, 300);
         } catch (err) {
-          console.debug(
-            "Index prefetch: getProduct failed",
-            err?.message || err
-          );
+          console.debug("Index prefetch: getProduct failed", err?.message || err);
         }
       } catch (err) {
         console.debug("Index prefetch: unexpected error", err?.message || err);
       }
     })();
 
-    return () => {};
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   return {

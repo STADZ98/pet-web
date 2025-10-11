@@ -25,65 +25,16 @@ const Shop = () => {
   const getProduct = useEcomStore((state) => state.getProduct);
   const products = useEcomStore((state) => state.products);
   const categories = useEcomStore((state) => state.categories || []);
-  const getCategory = useEcomStore((s) => s.getCategory);
-  const getSubcategories = useEcomStore((s) => s.getSubcategories);
-  const getSubsubcategories = useEcomStore((s) => s.getSubsubcategories);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("popular");
-  const [loading, setLoading] = useState(true);
   // no local searchParams needed in this view
   const navigate = useNavigate();
 
   // Fetch products on mount
   useEffect(() => {
-    // Ensure taxonomy is hydrated (only if empty)
-    let mounted = true;
-
-    const load = async () => {
-      try {
-        setLoading(true);
-
-        // taxonomy
-        if (!categories?.length) await getCategory?.();
-        if (!useEcomStore.getState().subcategories?.length)
-          await getSubcategories?.();
-        if (!useEcomStore.getState().subsubcategories?.length)
-          await getSubsubcategories?.();
-
-        // Load a small initial page of products quickly (await so we can show skeleton)
-        try {
-          await getProduct?.(24);
-        } catch (e) {
-          console.debug(
-            "Shop: getProduct initial load failed",
-            e?.message || e
-          );
-        }
-
-        // Warm cache for common lists used across the site (non-blocking)
-        const fetchProducts = useEcomStore.getState().fetchProducts;
-        if (fetchProducts) {
-          fetchProducts("sold", "desc", 12).catch(() => {});
-          fetchProducts("updatedAt", "desc", 12).catch(() => {});
-        }
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    load();
-
-    return () => {
-      mounted = false;
-    };
-  }, [
-    getProduct,
-    getCategory,
-    getSubcategories,
-    getSubsubcategories,
-    categories,
-  ]);
+    getProduct();
+  }, [getProduct]);
 
   // Compute product count per category
   const productCountMap = useMemo(() => {
@@ -220,7 +171,7 @@ const Shop = () => {
 
           {/* Categories Grid */}
           <section className="md:col-span-3">
-            {loading || categories.length === 0 ? (
+            {categories.length === 0 ? (
               <LoadingSkeleton />
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
