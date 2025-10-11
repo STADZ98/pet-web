@@ -576,7 +576,8 @@ const ArticlesGrid = () => {
                 loading="lazy"
                 onError={(e) => {
                   e.currentTarget.onerror = null;
-                  e.currentTarget.src = "/img/placeholder-article.jpg";
+                  // public/no-image.png exists in the project; use it as a fallback
+                  e.currentTarget.src = "/no-image.png";
                 }}
               />
 
