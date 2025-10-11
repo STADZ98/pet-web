@@ -99,7 +99,8 @@ const ecomStore = (set, get) => ({
       let token = get().token || null; // ใช้ token จาก store ถ้าไม่มี
       let sort = "createdAt";
       let order = "desc";
-      let limit = 50;
+      // Default to a smaller page size for storefront listing to reduce payload
+      let limit = 24;
 
       if (args.length === 1) {
         if (typeof args[0] === "string") token = args[0];
@@ -118,8 +119,18 @@ const ecomStore = (set, get) => ({
         limit = args[2] ?? limit;
       }
 
-      const res = await listProductBy(token, sort, order, limit);
-      set({ products: res.data || [] });
+      // Fetch products and categories/brands in parallel to reduce round-trips
+      const promises = [listProductBy(token, sort, order, limit)];
+      // only fetch categories/brands if not already present to avoid extra work
+      if ((get().categories || []).length === 0) promises.push(listCategory());
+      if ((get().brands || []).length === 0) promises.push(listBrand());
+
+      const results = await Promise.all(promises);
+      const productRes = results[0];
+      set({ products: productRes.data || [] });
+      // optional: set categories/brands if those requests were done
+      if (results[1] && results[1].data) set({ categories: results[1].data });
+      if (results[2] && results[2].data) set({ brands: results[2].data });
     } catch (err) {
       console.error("getProduct error:", err.response?.data || err.message);
       set({ products: [] });
