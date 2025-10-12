@@ -16,6 +16,7 @@ import {
   Loader2,
   AlertTriangle,
 } from "lucide-react";
+import { getProductImage } from "./adminHelpers";
 
 // Helper function for status styling
 const getStatusBadge = (status) => {
@@ -124,23 +125,27 @@ const ReturnRequests = () => {
     setAdminNote("");
   };
 
-  // helper to resolve image url similar to other components
-  const resolveProductImage = (p) => {
-    if (!p) return null;
-    // prefer variant specific (if present), then product.images, then product.image
-    if (p.variant && p.variant.images && p.variant.images.length) {
-      const first = p.variant.images[0];
-      return typeof first === "string"
-        ? first
-        : first.url || first.secure_url || first;
+  // image fallback and normalizer
+  const NO_IMAGE_DATA_URL =
+    "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 24 24' fill='none' stroke='%23d1d5db' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='2' ry='2'/><path d='M3 15l4-4 4 4 6-6 4 4'/></svg>";
+
+  const getImageSrc = (p) => {
+    try {
+      const raw = getProductImage(p);
+      if (!raw) return null;
+      const s = String(raw);
+      if (s.startsWith("data:")) return s;
+      if (/^https?:\/\//i.test(s)) return s;
+      if (s.startsWith("//")) return window.location.protocol + s;
+      const prefix = import.meta.env.VITE_API || "";
+      if (prefix)
+        return String(prefix).replace(/\/$/, "") + "/" + s.replace(/^\//, "");
+      return (
+        window.location.origin.replace(/\/$/, "") + "/" + s.replace(/^\//, "")
+      );
+    } catch {
+      return null;
     }
-    if (p.product && p.product.images && p.product.images.length) {
-      const first = p.product.images[0];
-      return typeof first === "string"
-        ? first
-        : first.url || first.secure_url || first;
-    }
-    return (p.product && (p.product.image || p.product.imageUrl)) || null;
   };
 
   return (
@@ -230,7 +235,7 @@ const ReturnRequests = () => {
                     <ul className="mt-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                       {Array.isArray(r.products) &&
                         r.products.map((p) => {
-                          const img = resolveProductImage(p);
+                          const img = getImageSrc(p);
                           const title = p.product?.title || `#${p.productId}`;
                           return (
                             <li
@@ -241,6 +246,10 @@ const ReturnRequests = () => {
                                 <img
                                   src={img}
                                   alt={title}
+                                  onError={(e) => {
+                                    e.target.onerror = null;
+                                    e.target.src = NO_IMAGE_DATA_URL;
+                                  }}
                                   className="w-14 h-14 rounded-md object-cover border"
                                 />
                               ) : (
@@ -401,7 +410,7 @@ const ReturnRequests = () => {
                         <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {Array.isArray(rr.products) &&
                             rr.products.map((p) => {
-                              const img = resolveProductImage(p);
+                              const img = getImageSrc(p);
                               const title =
                                 p.product?.title || `#${p.productId}`;
                               return (
@@ -413,6 +422,10 @@ const ReturnRequests = () => {
                                     <img
                                       src={img}
                                       alt={title}
+                                      onError={(e) => {
+                                        e.target.onerror = null;
+                                        e.target.src = NO_IMAGE_DATA_URL;
+                                      }}
                                       className="w-20 h-20 rounded-md object-cover border"
                                     />
                                   ) : (
