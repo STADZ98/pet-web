@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import useEcomStore from "../../store/ecom-store";
 import {
   getReturnRequestsAdmin,
@@ -20,28 +20,53 @@ import {
 
 // ✅ normalize image URL
 const normalizeImageUrl = (input) => {
-  if (!input) return null;
+  if (input == null) return null;
+
+  // If an array was passed, try the first item
+  if (Array.isArray(input)) {
+    return normalizeImageUrl(input[0]);
+  }
+
   let url = "";
 
   if (typeof input === "string") {
     url = input;
   } else if (typeof input === "object") {
-    url =
-      input.secure_url ||
-      input.url ||
-      input.path ||
-      input.image ||
-      input.imageUrl ||
-      input?.product?.image ||
-      input?.product?.images?.[0] ||
-      "";
+    // prefer common string fields; if any field is an array/object try to normalize it recursively
+    const candidates = [
+      input.secure_url,
+      input.url,
+      input.path,
+      input.image,
+      input.imageUrl,
+      input?.product?.image,
+      input?.product?.images?.[0],
+    ];
+
+    for (const c of candidates) {
+      if (c == null) continue;
+      if (typeof c === "string" && c.trim().length > 0) {
+        url = c;
+        break;
+      }
+      if (Array.isArray(c) || typeof c === "object") {
+        const nested = normalizeImageUrl(c);
+        if (nested) {
+          url = nested;
+          break;
+        }
+      }
+    }
   }
 
-  if (!url) return null;
+  if (!url || typeof url !== "string") return null;
 
-  // ถ้าไม่มี protocol ให้เติม https://
+  // ถ้าไม่มี protocol ให้เติม API base (แต่ตรวจสอบให้แน่ใจว่า url เป็นสตริงที่ปลอดภัย)
   if (!/^https?:\/\//i.test(url)) {
-    url = url.startsWith("/") ? `${API}${url}` : `${API}/${url}`;
+    // only prepend API when url looks like a path (starts with '/') or does not contain '[' or ']' which suggest malformed data
+    if (url.startsWith("/")) url = `${API}${url}`;
+    else if (!url.includes("[") && !url.includes("]")) url = `${API}/${url}`;
+    else return null; // suspicious value like '[' -> ignore
   }
 
   return url.replace(/^http:\/\//i, "https://");
@@ -88,15 +113,24 @@ const ReturnRequests = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [processingId, setProcessingId] = useState(null);
-  const [detailOpenFor, setDetailOpenFor] = useState(null);
+  // detail open state intentionally unused in this component
   const [adminNote, setAdminNote] = useState("");
 
-  const fetch = async () => {
+  const fetch = useCallback(async () => {
     if (!token) return;
     setLoading(true);
     try {
       const res = await getReturnRequestsAdmin(token, { perPage: 50 });
+      // DEBUG: show structure of returnRequests and products to aid debugging image fields
+      console.debug(
+        "[DEBUG] getReturnRequestsAdmin response:",
+        res?.data?.returnRequests
+      );
       const sortedRequests = (res.data.returnRequests || []).sort((a, b) => {
+        // Also log each request's products (compact)
+        (res.data.returnRequests || []).forEach((r) =>
+          console.debug("[DEBUG] request ", r.id, " products:", r.products)
+        );
         if (a.status === "PENDING" && b.status !== "PENDING") return -1;
         if (a.status !== "PENDING" && b.status === "PENDING") return 1;
         return new Date(b.createdAt) - new Date(a.createdAt);
@@ -108,11 +142,11 @@ const ReturnRequests = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
 
   useEffect(() => {
     fetch();
-  }, [token]);
+  }, [fetch]);
 
   const handleUpdate = async (id, status) => {
     if (!token) return alert("ต้องล็อกอินเป็นแอดมิน");
@@ -142,12 +176,7 @@ const ReturnRequests = () => {
 
   const openDetails = (r) => {
     setAdminNote(r.adminNote || "");
-    setDetailOpenFor(r.id);
-  };
-
-  const closeDetails = () => {
-    setDetailOpenFor(null);
-    setAdminNote("");
+    // detail modal logic handled elsewhere / not needed here
   };
 
   const NO_IMAGE_DATA_URL =

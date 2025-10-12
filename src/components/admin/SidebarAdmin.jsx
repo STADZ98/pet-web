@@ -14,7 +14,9 @@ import {
   CheckCircle,
   Info,
   XCircle,
-  ChevronDown, // เพิ่มไอคอนสำหรับ Dropdown
+  ChevronDown,
+  UserStar,
+  Undo2 // เพิ่มไอคอนสำหรับ Dropdown
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import useEcomStore from "../../store/ecom-store";
@@ -303,13 +305,13 @@ const SidebarAdmin = ({ profile, loading }) => {
     },
     {
       to: "reviews",
-      icon: <Users2 className="w-6 h-6 group-hover:text-yellow-500 transition" />,
+      icon: <UserStar className="w-6 h-6 group-hover:text-yellow-500 transition" />,
       label: "จัดการรีวิว",
     },
     {
       to: "return-requests",
       icon: (
-        <PackagePlus className="w-6 h-6 group-hover:text-yellow-500 transition" />
+        <Undo2 className="w-6 h-6 group-hover:text-yellow-500 transition" />
       ),
       label: "ร้องขอคืนสินค้า",
     },
