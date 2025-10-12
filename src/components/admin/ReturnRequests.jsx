@@ -16,7 +16,7 @@ import {
   Loader2,
   AlertTriangle,
 } from "lucide-react";
-import { getProductImage, getImageUrlFromEntry } from "./adminHelpers";
+import { normalizeImageUrl } from "./adminHelpers";
 
 // Helper function for status styling
 const getStatusBadge = (status) => {
@@ -129,73 +129,7 @@ const ReturnRequests = () => {
   const NO_IMAGE_DATA_URL =
     "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 24 24' fill='none' stroke='%23d1d5db' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='2' ry='2'/><path d='M3 15l4-4 4 4 6-6 4 4'/></svg>";
 
-  const getImageSrc = (p) => {
-    try {
-      const raw = getProductImage(p);
-      if (!raw) return null;
-
-      // raw may be a string or an object-like image entry
-      let url = null;
-      if (typeof raw === "string") url = raw;
-      else if (raw && typeof raw === "object") {
-        url =
-          raw?.secure_url ||
-          raw?.url ||
-          raw?.src ||
-          raw?.path ||
-          raw?.publicUrl ||
-          null;
-        // If still not found, try the generic extractor which handles nested data.attributes
-        if (!url) url = getImageUrlFromEntry(raw);
-      }
-
-      // If still not found, mirror the simple fallback used in HistoryCard.ReturnProductModal.jsx
-      // which often stores images as arrays where first element is either a string or an object with a `url` field.
-      if (!url) {
-        const tryFirst =
-          p?.variant?.images?.[0]?.url ||
-          p?.variant?.images?.[0] ||
-          p?.variant?.image ||
-          p?.product?.images?.[0]?.url ||
-          p?.product?.images?.[0] ||
-          p?.product?.image ||
-          null;
-        if (tryFirst) url = tryFirst;
-      }
-
-      if (!url) return null;
-
-      url = String(url).trim();
-      // convert http:// to https:// to avoid mixed-content issues
-      if (/^http:\/\//i.test(url)) url = url.replace(/^http:\/\//i, "https://");
-      // protocol-relative
-      if (/^\/\//.test(url)) url = `https:${url}`;
-
-      // data/blob URLs
-      if (/^data:/i.test(url) || /^blob:/i.test(url)) return url;
-
-      // If absolute already, return
-      if (/^https?:\/\//i.test(url)) return url;
-
-      // Relative path: use configured API base if present, prefer VITE_API or VITE_API_URL
-      const apiBase =
-        import.meta.env.VITE_API || import.meta.env.VITE_API_URL || "";
-      if (apiBase) {
-        const base = String(apiBase).replace(/\/$/, "");
-        return `${base}/${url.replace(/^\//, "")}`;
-      }
-
-      // As a last resort, prefix with current origin so relative uploads resolve in dev
-      if (typeof window !== "undefined" && window.location) {
-        return `${window.location.origin}/${url.replace(/^\//, "")}`;
-      }
-
-      // fallback to raw
-      return url;
-    } catch {
-      return null;
-    }
-  };
+  const getImageSrc = (p) => normalizeImageUrl(p);
 
   return (
     <div className="p-6 bg-white rounded-xl shadow-lg border border-gray-100">

@@ -171,6 +171,76 @@ export const getProductImage = (p) => {
   return null;
 };
 
+// Normalize various image entry shapes into a usable absolute URL (or data/blob URL)
+export const normalizeImageUrl = (pOrEntry) => {
+  try {
+    let url = null;
+
+    // If this looks like a product/variant wrapper, prefer getProductImage which
+    // understands many shapes (variant.images, product.images, fallback fields)
+    if (
+      pOrEntry &&
+      (pOrEntry.variant ||
+        pOrEntry.product ||
+        pOrEntry.productId ||
+        pOrEntry.variantId)
+    ) {
+      const raw = getProductImage(pOrEntry);
+      if (raw) {
+        if (typeof raw === "string") url = raw;
+        else url = getImageUrlFromEntry(raw);
+      }
+
+      // mirror other components that sometimes store images as arrays where the
+      // first element is either a string or an object with a `url` field
+      if (!url) {
+        const tryFirst =
+          pOrEntry?.variant?.images?.[0]?.url ||
+          pOrEntry?.variant?.images?.[0] ||
+          pOrEntry?.variant?.image ||
+          pOrEntry?.product?.images?.[0]?.url ||
+          pOrEntry?.product?.images?.[0] ||
+          pOrEntry?.product?.image ||
+          null;
+        if (tryFirst) url = tryFirst;
+      }
+    } else {
+      // treat as a raw entry (string, object with url/secure_url, array, nested data.attributes)
+      url = getImageUrlFromEntry(pOrEntry);
+    }
+
+    if (!url) return null;
+
+    url = String(url).trim();
+    // upgrade http -> https
+    if (/^http:\/\//i.test(url)) url = url.replace(/^http:\/\//i, "https://");
+    // protocol-relative
+    if (/^\/\//.test(url)) url = `https:${url}`;
+
+    // data/blob URLs are already usable
+    if (/^data:/i.test(url) || /^blob:/i.test(url)) return url;
+
+    // absolute
+    if (/^https?:\/\//i.test(url)) return url;
+
+    // Relative path: try VITE_API / VITE_API_URL then fallback to origin
+    const apiBase =
+      import.meta.env.VITE_API || import.meta.env.VITE_API_URL || "";
+    if (apiBase) {
+      const base = String(apiBase).replace(/\/$/, "");
+      return `${base}/${url.replace(/^\//, "")}`;
+    }
+
+    if (typeof window !== "undefined" && window.location) {
+      return `${window.location.origin}/${url.replace(/^\//, "")}`;
+    }
+
+    return url;
+  } catch {
+    return null;
+  }
+};
+
 export const getValue = (obj, candidates) => {
   if (!obj || !candidates) return null;
   for (const cand of candidates) {
