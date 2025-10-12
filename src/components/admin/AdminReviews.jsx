@@ -101,100 +101,145 @@ const AdminReviews = () => {
 
   return (
     <div className="p-6 bg-white rounded-lg shadow">
-      <h2 className="text-xl font-bold mb-4">จัดการรีวิว</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-bold">จัดการรีวิว</h2>
+        <div className="text-sm text-gray-500">{reviews.length} รีวิว</div>
+      </div>
+
       {loading ? (
-        <div>Loading...</div>
+        <div className="py-8 text-center text-gray-500">Loading...</div>
       ) : reviews.length === 0 ? (
-        <div>No reviews found</div>
+        <div className="py-8 text-center text-gray-500">No reviews found</div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {reviews.map((r) => (
-            <div key={r.id} className="p-4 border rounded-lg">
-              <div className="flex items-center gap-3">
-                {r.user?.avatar ? (
-                  <img
-                    src={r.user.avatar}
-                    alt="avatar"
-                    className="w-10 h-10 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="w-10 h-10 rounded-full bg-gray-100" />
-                )}
-                <div>
-                  <div className="font-semibold">{r.user?.email}</div>
-                  <div className="text-sm text-gray-600">
-                    Rating: {r.rating}
-                  </div>
-                </div>
-              </div>
-              <div className="mt-2">{r.comment}</div>
-              {r.reply && (
-                <div className="mt-2 bg-gray-50 border-l-4 border-orange-300 p-3 rounded">
-                  <div className="text-sm text-gray-700 whitespace-pre-line">
-                    {r.reply}
-                  </div>
-                  <div className="text-xs text-gray-400 mt-2">
-                    ตอบโดย: {r.replyBy?.email || "ผู้ดูแลระบบ"} •{" "}
-                    {r.repliedAt
-                      ? new Date(r.repliedAt).toLocaleString("th-TH")
-                      : ""}
-                  </div>
-                </div>
-              )}
-              <div className="mt-2 flex gap-2">
-                <button
-                  onClick={() => handleDelete(r.id)}
-                  className="px-3 py-1 bg-red-500 text-white rounded"
-                >
-                  Delete
-                </button>
-                {/* Reply controls */}
-                {editingReply[r.id] !== undefined ? (
-                  <div className="flex gap-2 items-start">
-                    <textarea
-                      value={editingReply[r.id]}
-                      onChange={(e) =>
-                        setEditingReply((s) => ({
-                          ...s,
-                          [r.id]: e.target.value,
-                        }))
-                      }
-                      className="border rounded px-2 py-1 text-sm"
-                      rows={3}
+            <div
+              key={r.id}
+              className="p-4 border rounded-lg shadow-sm hover:shadow-md transition"
+            >
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0">
+                  {r.user?.avatar ? (
+                    <img
+                      src={r.user.avatar}
+                      alt="avatar"
+                      className="w-12 h-12 rounded-full object-cover"
                     />
-                    <div className="flex flex-col gap-2">
-                      <button
-                        onClick={() => saveReply(r.id)}
-                        className="px-3 py-1 bg-orange-600 text-white rounded text-sm"
-                      >
-                        บันทึก
-                      </button>
-                      <button
-                        onClick={() => cancelEditReply(r.id)}
-                        className="px-3 py-1 bg-gray-100 rounded text-sm"
-                      >
-                        ยกเลิก
-                      </button>
+                  ) : (
+                    <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-400">
+                      U
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-semibold text-gray-800">
+                        {r.user?.email || "ผู้ใช้งาน"}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {r.product?.title || r.product?.name || "สินค้า"}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <svg
+                            key={i}
+                            className={`w-4 h-4 ${
+                              i < (r.rating || 0)
+                                ? "text-yellow-400"
+                                : "text-gray-300"
+                            }`}
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                          >
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.966a1 1 0 00.95.69h4.18c.969 0 1.371 1.24.588 1.81l-3.386 2.46a1 1 0 00-.364 1.118l1.287 3.966c.3.921-.755 1.688-1.539 1.118L10 13.347l-3.452 2.607c-.783.57-1.838-.197-1.539-1.118l1.287-3.966a1 1 0 00-.364-1.118L2.544 9.393c-.783-.57-.38-1.81.588-1.81h4.18a1 1 0 00.95-.69l1.287-3.966z" />
+                          </svg>
+                        ))}
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        {new Date(
+                          r.createdAt || r.date || Date.now()
+                        ).toLocaleDateString("th-TH")}
+                      </div>
                     </div>
                   </div>
-                ) : (
-                  <>
+
+                  <div className="mt-3 text-gray-700 whitespace-pre-line">
+                    {r.comment}
+                  </div>
+
+                  {r.reply && (
+                    <div className="mt-3 bg-gray-50 border-l-4 border-blue-200 p-3 rounded">
+                      <div className="text-sm text-gray-700 whitespace-pre-line">
+                        {r.reply}
+                      </div>
+                      <div className="text-xs text-gray-400 mt-2">
+                        ตอบโดย: {r.replyBy?.email || "ผู้ดูแลระบบ"} •{" "}
+                        {r.repliedAt
+                          ? new Date(r.repliedAt).toLocaleString("th-TH")
+                          : ""}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="mt-3 flex items-center gap-2">
                     <button
-                      onClick={() => startEditReply(r.id, r.reply || "")}
-                      className="px-3 py-1 bg-white border rounded text-sm"
+                      onClick={() => handleDelete(r.id)}
+                      className="px-3 py-1 bg-red-500 text-white rounded-md text-sm hover:bg-red-600"
                     >
-                      {r.reply ? "แก้ไขการตอบกลับ" : "ตอบกลับ"}
+                      ลบรีวิว
                     </button>
-                    {r.reply && (
-                      <button
-                        onClick={() => deleteReply(r.id)}
-                        className="px-3 py-1 bg-red-100 text-red-600 rounded text-sm"
-                      >
-                        ลบการตอบกลับ
-                      </button>
+
+                    {editingReply[r.id] !== undefined ? (
+                      <div className="flex gap-2 items-start w-full">
+                        <textarea
+                          value={editingReply[r.id]}
+                          onChange={(e) =>
+                            setEditingReply((s) => ({
+                              ...s,
+                              [r.id]: e.target.value,
+                            }))
+                          }
+                          className="border rounded px-2 py-1 text-sm flex-1"
+                          rows={3}
+                        />
+                        <div className="flex flex-col gap-2">
+                          <button
+                            onClick={() => saveReply(r.id)}
+                            className="px-3 py-1 bg-blue-600 text-white rounded text-sm"
+                          >
+                            บันทึก
+                          </button>
+                          <button
+                            onClick={() => cancelEditReply(r.id)}
+                            className="px-3 py-1 bg-gray-100 rounded text-sm"
+                          >
+                            ยกเลิก
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => startEditReply(r.id, r.reply || "")}
+                          className="px-3 py-1 bg-white border rounded text-sm"
+                        >
+                          {r.reply ? "แก้ไขการตอบกลับ" : "ตอบกลับ"}
+                        </button>
+                        {r.reply && (
+                          <button
+                            onClick={() => deleteReply(r.id)}
+                            className="px-3 py-1 bg-red-100 text-red-600 rounded text-sm"
+                          >
+                            ลบการตอบกลับ
+                          </button>
+                        )}
+                      </>
                     )}
-                  </>
-                )}
+                  </div>
+                </div>
               </div>
             </div>
           ))}

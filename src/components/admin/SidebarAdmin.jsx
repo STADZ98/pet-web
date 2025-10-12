@@ -231,9 +231,9 @@ const SidebarAdmin = ({ profile, loading }) => {
     "flex items-center gap-3 px-5 py-3 rounded-xl font-semibold transition-all duration-200 select-none group";
   // Class CSS สำหรับ NavLink ที่ Active / Inactive (นำมาใช้ต่อ)
   const activeNavLinkClass =
-    "bg-gradient-to-r from-blue-100 to-blue-50 text-blue-900 shadow-lg scale-105";
+    "bg-gradient-to-r from-blue-50 to-white text-blue-700 shadow scale-105 ring-1 ring-blue-50";
   const inactiveNavLinkClass =
-    "text-blue-100 hover:bg-blue-800/70 hover:text-blue-200";
+    "text-gray-600 hover:bg-gray-50 hover:text-gray-900";
 
   // สถานะ dropdown ของ category
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
@@ -303,29 +303,42 @@ const SidebarAdmin = ({ profile, loading }) => {
         `}
       >
         {/* Header ของ Sidebar */}
-        <div className="h-24 bg-white flex items-center justify-center text-3xl font-extrabold tracking-wide rounded-b-3xl shadow-lg select-text cursor-default border-b border-gray-200">
-          <span className="ml-2 text-gray-900">Admin Panel</span>
+        <div className="h-24 bg-gradient-to-r from-white to-blue-50 flex items-center justify-between px-4 rounded-b-3xl shadow-sm select-text cursor-default border-b border-gray-100">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold">
+              A
+            </div>
+            <div className="flex flex-col">
+              <span className="text-lg font-bold text-gray-900">
+                Admin Panel
+              </span>
+              <span className="text-xs text-gray-500">จัดการร้านค้า</span>
+            </div>
+          </div>
+          <div className="hidden md:flex items-center text-xs text-gray-500">
+            v2.1
+          </div>
         </div>
 
         {/* ส่วนแสดง Profile ผู้ใช้ */}
-        <div className="flex flex-col items-center py-4 border-b border-gray-200 mb-2 bg-white">
+        <div className="flex flex-col items-center py-5 border-b border-gray-100 mb-3 bg-white">
           {loading ? (
-            <div className="w-12 h-12 bg-gray-100 rounded-full animate-pulse mb-1" />
+            <div className="w-14 h-14 bg-gray-100 rounded-full animate-pulse mb-1" />
           ) : (
-            <div className="relative mb-1">
+            <div className="relative mb-2">
               {profile?.picture ? (
                 <img
                   src={profile.picture}
                   alt="admin avatar"
-                  className="w-12 h-12 rounded-full object-cover"
+                  className="w-14 h-14 rounded-full object-cover border-2 border-white shadow"
                 />
               ) : (
-                <UserRound className="w-12 h-12 text-gray-400 drop-shadow" />
+                <UserRound className="w-14 h-14 text-gray-300 drop-shadow" />
               )}
               <button
                 onClick={() => setIsUploadModalOpen(true)}
                 title="อัปโหลดรูปโปรไฟล์"
-                className="absolute bottom-0 right-0 bg-white p-1 rounded-full shadow border border-gray-200"
+                className="absolute -bottom-0.5 -right-0.5 bg-white p-1.5 rounded-full shadow border border-gray-200 hover:bg-gray-50 transition"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -345,11 +358,11 @@ const SidebarAdmin = ({ profile, loading }) => {
               <span className="absolute bottom-0 left-0 w-3 h-3 bg-green-400 border-2 border-white rounded-full"></span>
             </div>
           )}
-          <div className="flex flex-col items-center">
-            <span className="font-bold text-sm text-gray-900 leading-tight">
+          <div className="flex flex-col items-center text-center">
+            <span className="font-semibold text-sm text-gray-900 leading-tight">
               {profile?.name || "Admin"}
             </span>
-            <span className="text-[10px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full mt-0.5">
+            <span className="text-[11px] text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full mt-1">
               {profile?.email || "admin@email.com"}
             </span>
           </div>
@@ -371,8 +384,8 @@ const SidebarAdmin = ({ profile, loading }) => {
             setPreview(null);
           }}
         >
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-36 h-36 rounded-full overflow-hidden bg-gray-100 border border-gray-200">
+          <div className="flex flex-col items-center gap-4 w-full">
+            <div className="w-36 h-36 rounded-full overflow-hidden bg-gradient-to-br from-gray-50 to-white border border-gray-100 shadow-sm flex items-center justify-center">
               {preview ? (
                 <img
                   src={preview}
@@ -386,10 +399,24 @@ const SidebarAdmin = ({ profile, loading }) => {
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <UserRound className="w-full h-full text-gray-300" />
+                <UserRound className="w-16 h-16 text-gray-300" />
               )}
             </div>
-            <label className="px-4 py-2 bg-white border border-gray-200 rounded-md cursor-pointer">
+            <label className="px-4 py-2 bg-white border border-gray-200 rounded-md cursor-pointer hover:bg-gray-50 transition inline-flex items-center gap-2">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="w-4 h-4 text-gray-600"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1M12 12v9"
+                />
+              </svg>
               เลือกรูป
               <input
                 type="file"
@@ -399,7 +426,7 @@ const SidebarAdmin = ({ profile, loading }) => {
               />
             </label>
             <div className="text-sm text-gray-500">
-              ขนาดที่แนะนำ: 400x400px (jpg/png)
+              ขนาดที่แนะนำ: 400×400 (JPG/PNG)
             </div>
           </div>
         </ModernModal>
@@ -422,9 +449,7 @@ const SidebarAdmin = ({ profile, loading }) => {
                   className={({ isActive }) =>
                     [
                       baseNavLinkClass,
-                      isActive
-                        ? "bg-gray-100 text-gray-900 shadow scale-105"
-                        : "text-gray-500 hover:bg-gray-100 hover:text-gray-900",
+                      isActive ? activeNavLinkClass : inactiveNavLinkClass,
                     ].join(" ")
                   }
                 >
@@ -481,7 +506,7 @@ const SidebarAdmin = ({ profile, loading }) => {
                       [
                         "block px-5 py-3 text-sm rounded-t-lg transition-all",
                         isActive
-                          ? "bg-gray-100 text-gray-900"
+                          ? "bg-gray-50 text-gray-900"
                           : "text-gray-500 hover:bg-gray-50 hover:text-gray-900",
                       ].join(" ")
                     }
@@ -495,7 +520,7 @@ const SidebarAdmin = ({ profile, loading }) => {
                       [
                         "block px-5 py-3 text-sm transition-all",
                         isActive
-                          ? "bg-gray-100 text-gray-900"
+                          ? "bg-gray-50 text-gray-900"
                           : "text-gray-500 hover:bg-gray-50 hover:text-gray-900",
                       ].join(" ")
                     }
@@ -509,7 +534,7 @@ const SidebarAdmin = ({ profile, loading }) => {
                       [
                         "block px-5 py-3 text-sm rounded-b-lg transition-all",
                         isActive
-                          ? "bg-gray-100 text-gray-900"
+                          ? "bg-gray-50 text-gray-900"
                           : "text-gray-500 hover:bg-gray-50 hover:text-gray-900",
                       ].join(" ")
                     }
