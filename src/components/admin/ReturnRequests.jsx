@@ -18,61 +18,52 @@ import {
   AlertTriangle,
 } from "lucide-react";
 
-// ✅ normalize image URL
+// ✅ ปรับปรุง normalizeImageUrl ให้รองรับทุกกรณี (image, imageUrl, product.image, product.images[0], secure_url ฯลฯ)
 const normalizeImageUrl = (input) => {
-  if (input == null) return null;
+  if (!input) return null;
 
-  // If an array was passed, try the first item
-  if (Array.isArray(input)) {
-    return normalizeImageUrl(input[0]);
-  }
+  if (Array.isArray(input)) return normalizeImageUrl(input[0]);
 
-  let url = "";
-
-  if (typeof input === "string") {
-    url = input;
-  } else if (typeof input === "object") {
-    // prefer common string fields; if any field is an array/object try to normalize it recursively
+  if (typeof input === "object") {
     const candidates = [
-      input.secure_url,
-      input.url,
-      input.path,
       input.image,
       input.imageUrl,
-      input?.product?.image,
-      input?.product?.images?.[0],
+      input.url,
+      input.secure_url,
+      input.path,
+      input.thumbnail,
+      input.src,
+      input.product?.image,
+      input.product?.images?.[0],
+      input.productImage,
+      input.variant?.image,
+      input.variant?.images?.[0],
     ];
 
     for (const c of candidates) {
-      if (c == null) continue;
-      if (typeof c === "string" && c.trim().length > 0) {
-        url = c;
-        break;
-      }
-      if (Array.isArray(c) || typeof c === "object") {
-        const nested = normalizeImageUrl(c);
-        if (nested) {
-          url = nested;
-          break;
-        }
-      }
+      if (!c) continue;
+      const result = normalizeImageUrl(c);
+      if (result) return result;
     }
+    return null;
   }
 
-  if (!url || typeof url !== "string") return null;
+  if (typeof input === "string") {
+    let url = input.trim();
+    if (!url) return null;
 
-  // ถ้าไม่มี protocol ให้เติม API base (แต่ตรวจสอบให้แน่ใจว่า url เป็นสตริงที่ปลอดภัย)
-  if (!/^https?:\/\//i.test(url)) {
-    // only prepend API when url looks like a path (starts with '/') or does not contain '[' or ']' which suggest malformed data
-    if (url.startsWith("/")) url = `${API}${url}`;
-    else if (!url.includes("[") && !url.includes("]")) url = `${API}/${url}`;
-    else return null; // suspicious value like '[' -> ignore
+    // เติม base URL ถ้าไม่มี protocol
+    if (!/^https?:\/\//i.test(url)) {
+      if (url.startsWith("/")) url = `${API}${url}`;
+      else url = `${API}/${url}`;
+    }
+
+    return url.replace(/^http:\/\//i, "https://");
   }
 
-  return url.replace(/^http:\/\//i, "https://");
+  return null;
 };
 
-// Helper function for status styling
 const getStatusBadge = (status) => {
   switch (status) {
     case "PENDING":
@@ -113,7 +104,6 @@ const ReturnRequests = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [processingId, setProcessingId] = useState(null);
-  // detail open state intentionally unused in this component
   const [adminNote, setAdminNote] = useState("");
 
   const fetch = useCallback(async () => {
@@ -121,22 +111,15 @@ const ReturnRequests = () => {
     setLoading(true);
     try {
       const res = await getReturnRequestsAdmin(token, { perPage: 50 });
-      // DEBUG: show structure of returnRequests and products to aid debugging image fields
-      console.debug(
-        "[DEBUG] getReturnRequestsAdmin response:",
-        res?.data?.returnRequests
-      );
-      // Sort: PENDING first, then by newest createdAt
-      const sortedRequests = (res.data.returnRequests || [])
-        .slice()
-        .sort((a, b) => {
-          if (a.status === "PENDING" && b.status !== "PENDING") return -1;
-          if (a.status !== "PENDING" && b.status === "PENDING") return 1;
-          return new Date(b.createdAt) - new Date(a.createdAt);
-        });
-      setRequests(sortedRequests);
-    } catch (e) {
-      console.error(e);
+      console.debug("[DEBUG] returnRequests:", res?.data?.returnRequests);
+      const sorted = (res.data.returnRequests || []).sort((a, b) => {
+        if (a.status === "PENDING" && b.status !== "PENDING") return -1;
+        if (a.status !== "PENDING" && b.status === "PENDING") return 1;
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      });
+      setRequests(sorted);
+    } catch (err) {
+      console.error(err);
       alert("ไม่สามารถโหลดคำขอคืนสินค้าได้");
     } finally {
       setLoading(false);
@@ -155,78 +138,31 @@ const ReturnRequests = () => {
           status === "APPROVED" ? "อนุมัติ" : "ไม่อนุมัติ"
         } คำขอคืนสินค้า #${id} ?`
       )
-    ) {
+    )
       return;
-    }
-
     setProcessingId(id);
     try {
       await updateReturnRequestStatus(token, id, { status, adminNote });
-      // use functional updater to avoid stale closure
       setRequests((prev) =>
         prev.map((r) => (r.id === id ? { ...r, status } : r))
       );
       setTimeout(fetch, 500);
-    } catch (e) {
-      console.error(e);
+    } catch (err) {
+      console.error(err);
       alert("อัปเดตสถานะไม่สำเร็จ");
-      fetch();
     } finally {
       setProcessingId(null);
     }
   };
 
-  const openDetails = (r) => {
-    setAdminNote(r.adminNote || "");
-    // detail modal logic handled elsewhere / not needed here
-  };
-
-  const NO_IMAGE_DATA_URL =
-    "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 24 24' fill='none' stroke='%23d1d5db' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='2' ry='2'/><path d='M3 15l4-4 4 4 6-6 4 4'/></svg>";
-
-  const getImageSrc = (p) => {
-    if (!p) return null;
-    // First try normalizing the whole product object (handles objects like { secure_url, url } or nested product images)
-    const normalized = normalizeImageUrl(p);
-    if (normalized) return normalized;
-
-    // Fall back to picking the first string-like candidate from common fields
-    const candidates = [
-      p.image,
-      p.images?.[0],
-      p.productImage,
-      p.variantImage,
-      p.product?.image,
-      p.product?.images?.[0],
-      p.variant?.image,
-      p.variant?.images?.[0],
-      p.imageUrl,
-      p.secure_url,
-      p.url,
-      p.path,
-    ].filter(Boolean);
-
-    let url = candidates.find(
-      (x) => typeof x === "string" && x.trim().length > 0
-    );
-    if (!url) return null;
-
-    if (!/^https?:\/\//i.test(url)) {
-      if (url.startsWith("/")) url = `${API}${url}`;
-      else url = `${API}/${url}`;
-    }
-
-    return url.replace(/^http:\/\//i, "https://");
-  };
-
   const handleImageError = (e) => {
     e.target.onerror = null;
-    e.target.src = NO_IMAGE_DATA_URL;
+    e.target.src =
+      "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 24 24' fill='none' stroke='%23d1d5db' stroke-width='1.5'><rect x='3' y='3' width='18' height='18' rx='2'/><path d='M3 15l4-4 4 4 6-6 4 4'/></svg>";
   };
 
   return (
     <div className="p-6 bg-white rounded-xl shadow-lg border border-gray-100">
-      {/* Header */}
       <div className="flex items-center justify-between mb-6 border-b pb-3">
         <div className="flex items-center gap-2">
           <Ban className="w-7 h-7 text-red-600" />
@@ -248,7 +184,6 @@ const ReturnRequests = () => {
         </button>
       </div>
 
-      {/* Content */}
       {loading && requests.length === 0 ? (
         <div className="py-12 text-center text-red-500 flex flex-col items-center justify-center">
           <Loader2 className="w-8 h-8 animate-spin" />
@@ -303,7 +238,7 @@ const ReturnRequests = () => {
                     <ul className="mt-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                       {Array.isArray(r.products) &&
                         r.products.map((p) => {
-                          const img = getImageSrc(p);
+                          const img = normalizeImageUrl(p);
                           const title = p.product?.title || `#${p.productId}`;
                           return (
                             <li
@@ -337,13 +272,6 @@ const ReturnRequests = () => {
                   </div>
 
                   <div className="flex flex-col gap-2 flex-shrink-0 min-w-[120px]">
-                    <button
-                      onClick={() => openDetails(r)}
-                      className="px-3 py-1 text-xs text-gray-700 bg-white border border-gray-200 rounded-md hover:shadow-sm"
-                    >
-                      รายละเอียด
-                    </button>
-
                     {r.status === "PENDING" && (
                       <>
                         <button
