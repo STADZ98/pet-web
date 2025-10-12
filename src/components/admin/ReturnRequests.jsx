@@ -58,6 +58,8 @@ const ReturnRequests = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [processingId, setProcessingId] = useState(null); // To disable buttons during update
+  const [detailOpenFor, setDetailOpenFor] = useState(null);
+  const [adminNote, setAdminNote] = useState("");
 
   const fetch = async () => {
     if (!token) return;
@@ -98,7 +100,7 @@ const ReturnRequests = () => {
 
     setProcessingId(id);
     try {
-      await updateReturnRequestStatus(token, id, { status });
+      await updateReturnRequestStatus(token, id, { status, adminNote });
       // Optimistically update the status until refetch completes
       setRequests(requests.map((r) => (r.id === id ? { ...r, status } : r)));
       // Wait a moment then refetch to get clean data and handle any backend logic
@@ -110,6 +112,35 @@ const ReturnRequests = () => {
     } finally {
       setProcessingId(null);
     }
+  };
+
+  const openDetails = (r) => {
+    setAdminNote(r.adminNote || "");
+    setDetailOpenFor(r.id);
+  };
+
+  const closeDetails = () => {
+    setDetailOpenFor(null);
+    setAdminNote("");
+  };
+
+  // helper to resolve image url similar to other components
+  const resolveProductImage = (p) => {
+    if (!p) return null;
+    // prefer variant specific (if present), then product.images, then product.image
+    if (p.variant && p.variant.images && p.variant.images.length) {
+      const first = p.variant.images[0];
+      return typeof first === "string"
+        ? first
+        : first.url || first.secure_url || first;
+    }
+    if (p.product && p.product.images && p.product.images.length) {
+      const first = p.product.images[0];
+      return typeof first === "string"
+        ? first
+        : first.url || first.secure_url || first;
+    }
+    return (p.product && (p.product.image || p.product.imageUrl)) || null;
   };
 
   return (
@@ -187,22 +218,58 @@ const ReturnRequests = () => {
                         </span>
                       )}
                     </div>
-                    <div className="text-sm text-gray-600 border-t pt-2 mt-2">
-                      **สินค้าที่ขอคืน:**
-                      <ul className="list-disc list-inside ml-2 text-xs font-mono">
-                        {Array.isArray(r.products) &&
-                          r.products.map((p) => (
-                            <li key={p.id}>
-                              {p.product?.title || p.productId}
-                              {p.count && ` (x${p.count})`}
-                            </li>
-                          ))}
-                      </ul>
+                    <div className="flex items-center justify-between">
+                      <div className="font-medium">**สินค้าที่ขอคืน:**</div>
+                      <button
+                        onClick={() => openDetails(r)}
+                        className="text-xs text-indigo-600 hover:underline"
+                      >
+                        ดูรายละเอียด
+                      </button>
                     </div>
+                    <ul className="mt-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                      {Array.isArray(r.products) &&
+                        r.products.map((p) => {
+                          const img = resolveProductImage(p);
+                          const title = p.product?.title || `#${p.productId}`;
+                          return (
+                            <li
+                              key={p.id}
+                              className="flex items-center gap-3 bg-white p-2 rounded-md border border-gray-100"
+                            >
+                              {img ? (
+                                <img
+                                  src={img}
+                                  alt={title}
+                                  className="w-14 h-14 rounded-md object-cover border"
+                                />
+                              ) : (
+                                <div className="w-14 h-14 bg-gray-100 rounded-md flex items-center justify-center text-gray-300 text-xs border">
+                                  ไม่มีรูป
+                                </div>
+                              )}
+                              <div className="text-xs">
+                                <div className="font-semibold text-gray-800 truncate max-w-[140px]">
+                                  {title}
+                                </div>
+                                <div className="text-gray-500">
+                                  {p.count ? `x${p.count}` : ""}
+                                </div>
+                              </div>
+                            </li>
+                          );
+                        })}
+                    </ul>
                   </div>
 
                   {/* Actions */}
                   <div className="flex flex-col gap-2 flex-shrink-0 min-w-[120px]">
+                    <button
+                      onClick={() => openDetails(r)}
+                      className="px-3 py-1 text-xs text-gray-700 bg-white border border-gray-200 rounded-md hover:shadow-sm"
+                    >
+                      รายละเอียด
+                    </button>
                     {/* Approve Button */}
                     {r.status !== "APPROVED" && r.status !== "REJECTED" && (
                       <button
@@ -263,6 +330,157 @@ const ReturnRequests = () => {
               </div>
             );
           })}
+          {/* Details Modal */}
+          {detailOpenFor &&
+            (() => {
+              const rr = requests.find((x) => x.id === detailOpenFor);
+              if (!rr) return null;
+              return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                  <div className="w-full max-w-3xl bg-white rounded-xl shadow-lg overflow-hidden">
+                    <div className="flex items-center justify-between p-4 border-b">
+                      <div>
+                        <h3 className="text-lg font-bold">
+                          คำขอคืนสินค้า #{rr.id}
+                        </h3>
+                        <div className="text-sm text-gray-500">
+                          โดย: {rr.user?.email || "-"} • คำสั่งซื้อ #
+                          {rr.orderId}
+                        </div>
+                      </div>
+                      <button
+                        onClick={closeDetails}
+                        className="text-gray-500 hover:text-gray-700"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <div className="p-5 max-h-[70vh] overflow-y-auto space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <div className="text-sm text-gray-600">เหตุผล</div>
+                          <div className="text-sm font-medium text-gray-800">
+                            {rr.reason}
+                            {rr.customReason ? ` (${rr.customReason})` : ""}
+                          </div>
+
+                          <div className="text-sm text-gray-600 pt-3">
+                            สถานะ
+                          </div>
+                          <div>{getStatusBadge(rr.status)}</div>
+
+                          <div className="text-sm text-gray-600 pt-3">
+                            วันที่ส่งคำขอ
+                          </div>
+                          <div className="text-sm text-gray-800">
+                            {new Date(rr.createdAt).toLocaleString("th-TH")}
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="text-sm text-gray-600">
+                            ข้อมูลผู้ขอคืน
+                          </div>
+                          <div className="text-sm text-gray-800">
+                            {rr.user?.email || "-"}
+                          </div>
+                          <div className="text-sm text-gray-600 pt-2">
+                            คำสั่งซื้อ
+                          </div>
+                          <div className="text-sm text-gray-800">
+                            #{rr.orderId} • สถานะคำสั่งซื้อ:{" "}
+                            {rr.order?.orderStatus || "-"}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="text-sm text-gray-600">
+                          สินค้าที่ขอคืน
+                        </div>
+                        <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {Array.isArray(rr.products) &&
+                            rr.products.map((p) => {
+                              const img = resolveProductImage(p);
+                              const title =
+                                p.product?.title || `#${p.productId}`;
+                              return (
+                                <div
+                                  key={p.id}
+                                  className="flex gap-3 items-center p-3 bg-gray-50 rounded-md border"
+                                >
+                                  {img ? (
+                                    <img
+                                      src={img}
+                                      alt={title}
+                                      className="w-20 h-20 rounded-md object-cover border"
+                                    />
+                                  ) : (
+                                    <div className="w-20 h-20 bg-gray-100 rounded-md flex items-center justify-center text-gray-300">
+                                      ไม่มีรูป
+                                    </div>
+                                  )}
+                                  <div className="flex-1">
+                                    <div className="font-semibold text-gray-800">
+                                      {title}
+                                    </div>
+                                    <div className="text-sm text-gray-500">
+                                      จำนวน: {p.count || 1}
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm text-gray-600">
+                          หมายเหตุของแอดมิน (จะบันทึกพร้อมการอัปเดตสถานะ)
+                        </label>
+                        <textarea
+                          value={adminNote}
+                          onChange={(e) => setAdminNote(e.target.value)}
+                          className="mt-1 w-full min-h-[80px] p-2 border rounded-md"
+                        />
+                      </div>
+                    </div>
+                    <div className="p-4 border-t flex items-center justify-end gap-2">
+                      <button
+                        onClick={closeDetails}
+                        className="px-4 py-2 bg-white border rounded-md"
+                      >
+                        ปิด
+                      </button>
+                      {rr.status !== "APPROVED" && rr.status !== "REJECTED" && (
+                        <>
+                          <button
+                            onClick={() => {
+                              setProcessingId(rr.id);
+                              handleUpdate(rr.id, "REJECTED");
+                              closeDetails();
+                            }}
+                            className="px-4 py-2 bg-red-600 text-white rounded-md"
+                          >
+                            ไม่อนุมัติ
+                          </button>
+                          <button
+                            onClick={() => {
+                              setProcessingId(rr.id);
+                              handleUpdate(rr.id, "APPROVED");
+                              closeDetails();
+                            }}
+                            className="px-4 py-2 bg-green-600 text-white rounded-md"
+                          >
+                            อนุมัติ
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
         </div>
       )}
     </div>
