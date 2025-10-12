@@ -1,320 +1,189 @@
-import React, { useEffect, useState, useCallback } from "react";
-import useEcomStore from "../../store/ecom-store";
-import {
-  getReturnRequestsAdmin,
-  updateReturnRequestStatus,
-  API,
-} from "../../api/admin";
-import {
-  RefreshCw,
-  Ban,
-  Clock,
-  CheckCircle,
-  XCircle,
-  Mail,
-  Box,
-  Hash,
-  Loader2,
-  AlertTriangle,
-} from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { getReturnRequestsAdmin, updateReturnRequestStatus } from "@/api/admin";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
+import useAuthStore from "@/store/auth-store";
+import { API } from "@/api/admin";
 
-// ✅ ปรับปรุง normalizeImageUrl ให้รองรับทุกกรณี (image, imageUrl, product.image, product.images[0], secure_url ฯลฯ)
-const normalizeImageUrl = (input) => {
-  if (!input) return null;
+// ✅ ฟังก์ชันช่วยจัดการ URL ภาพทุกกรณี
+const getImageSrc = (image) => {
+  if (!image) return "/no-image.png";
 
-  if (Array.isArray(input)) return normalizeImageUrl(input[0]);
-
-  if (typeof input === "object") {
-    const candidates = [
-      input.image,
-      input.imageUrl,
-      input.url,
-      input.secure_url,
-      input.path,
-      input.thumbnail,
-      input.src,
-      input.product?.image,
-      input.product?.images?.[0],
-      input.productImage,
-      input.variant?.image,
-      input.variant?.images?.[0],
-    ];
-
-    for (const c of candidates) {
-      if (!c) continue;
-      const result = normalizeImageUrl(c);
-      if (result) return result;
+  // กรณี backend ส่ง base64 ที่มี prefix URL ผิด เช่น https://server-api.../api/data:image/...
+  if (image.startsWith("https://") && image.includes("data:image")) {
+    const base64Part = image.split("/api/")[1];
+    if (base64Part && base64Part.startsWith("data:image")) {
+      return base64Part;
     }
-    return null;
   }
 
-  if (typeof input === "string") {
-    let url = input.trim();
-    if (!url) return null;
+  // base64 ปกติ
+  if (image.startsWith("data:image")) return image;
 
-    // เติม base URL ถ้าไม่มี protocol
-    if (!/^https?:\/\//i.test(url)) {
-      if (url.startsWith("/")) url = `${API}${url}`;
-      else url = `${API}/${url}`;
-    }
+  // URL เต็ม
+  if (image.startsWith("http")) return image;
 
-    return url.replace(/^http:\/\//i, "https://");
-  }
-
-  return null;
-};
-
-const getStatusBadge = (status) => {
-  switch (status) {
-    case "PENDING":
-      return (
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 text-sm font-semibold text-yellow-800 bg-yellow-100 rounded-full">
-          <Clock className="w-4 h-4" /> รอดำเนินการ
-        </span>
-      );
-    case "APPROVED":
-      return (
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 text-sm font-semibold text-green-800 bg-green-100 rounded-full">
-          <CheckCircle className="w-4 h-4" /> อนุมัติแล้ว
-        </span>
-      );
-    case "REJECTED":
-      return (
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 text-sm font-semibold text-red-800 bg-red-100 rounded-full">
-          <XCircle className="w-4 h-4" /> ไม่อนุมัติ
-        </span>
-      );
-    case "REFUNDED":
-      return (
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 text-sm font-semibold text-blue-800 bg-blue-100 rounded-full">
-          <CheckCircle className="w-4 h-4" /> คืนเงินสำเร็จ
-        </span>
-      );
-    default:
-      return (
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 text-sm font-semibold text-gray-800 bg-gray-100 rounded-full">
-          <AlertTriangle className="w-4 h-4" /> {status}
-        </span>
-      );
-  }
+  // path ธรรมดา เช่น /uploads/xxx.jpg
+  return `${API.replace("/api", "")}${image}`;
 };
 
 const ReturnRequests = () => {
-  const token = useEcomStore((s) => s.token);
+  const { token } = useAuthStore();
   const [requests, setRequests] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [processingId, setProcessingId] = useState(null);
-  const [adminNote, setAdminNote] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(null);
 
-  const fetch = useCallback(async () => {
-    if (!token) return;
-    setLoading(true);
+  useEffect(() => {
+    if (token) fetchRequests();
+  }, [token]);
+
+  const fetchRequests = async () => {
     try {
-      const res = await getReturnRequestsAdmin(token, { perPage: 50 });
-      console.debug("[DEBUG] returnRequests:", res?.data?.returnRequests);
-      const sorted = (res.data.returnRequests || []).sort((a, b) => {
-        if (a.status === "PENDING" && b.status !== "PENDING") return -1;
-        if (a.status !== "PENDING" && b.status === "PENDING") return 1;
-        return new Date(b.createdAt) - new Date(a.createdAt);
-      });
-      setRequests(sorted);
+      setLoading(true);
+      const res = await getReturnRequestsAdmin(token);
+      console.debug(
+        "[DEBUG] getReturnRequestsAdmin response:",
+        res?.data?.returnRequests
+      );
+      setRequests(res?.data?.returnRequests || []);
     } catch (err) {
-      console.error(err);
-      alert("ไม่สามารถโหลดคำขอคืนสินค้าได้");
+      console.error("Failed to fetch return requests:", err);
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  };
 
-  useEffect(() => {
-    fetch();
-  }, [fetch]);
-
-  const handleUpdate = async (id, status) => {
-    if (!token) return alert("ต้องล็อกอินเป็นแอดมิน");
-    if (
-      !window.confirm(
-        `คุณแน่ใจจะ ${
-          status === "APPROVED" ? "อนุมัติ" : "ไม่อนุมัติ"
-        } คำขอคืนสินค้า #${id} ?`
-      )
-    )
-      return;
-    setProcessingId(id);
+  const handleUpdateStatus = async (id, newStatus) => {
     try {
-      await updateReturnRequestStatus(token, id, { status, adminNote });
+      setUpdating(id);
+      await updateReturnRequestStatus(token, id, { status: newStatus });
       setRequests((prev) =>
-        prev.map((r) => (r.id === id ? { ...r, status } : r))
+        prev.map((req) => (req.id === id ? { ...req, status: newStatus } : req))
       );
-      setTimeout(fetch, 500);
     } catch (err) {
-      console.error(err);
-      alert("อัปเดตสถานะไม่สำเร็จ");
+      console.error("Failed to update status:", err);
     } finally {
-      setProcessingId(null);
+      setUpdating(null);
     }
   };
 
-  const handleImageError = (e) => {
-    e.target.onerror = null;
-    e.target.src =
-      "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 24 24' fill='none' stroke='%23d1d5db' stroke-width='1.5'><rect x='3' y='3' width='18' height='18' rx='2'/><path d='M3 15l4-4 4 4 6-6 4 4'/></svg>";
-  };
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-[60vh]">
+        <Loader2 className="animate-spin mr-2" />
+        กำลังโหลดข้อมูล...
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6 bg-white rounded-xl shadow-lg border border-gray-100">
-      <div className="flex items-center justify-between mb-6 border-b pb-3">
-        <div className="flex items-center gap-2">
-          <Ban className="w-7 h-7 text-red-600" />
-          <h2 className="text-2xl font-extrabold text-gray-900">
-            คำร้องขอคืนสินค้าและการคืนเงิน
-          </h2>
-        </div>
-        <button
-          onClick={fetch}
-          disabled={loading}
-          className="flex items-center gap-1 px-4 py-2 text-sm font-semibold text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition disabled:opacity-50"
-        >
-          {loading ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <RefreshCw className="w-4 h-4" />
-          )}
-          รีเฟรช
-        </button>
-      </div>
-
-      {loading && requests.length === 0 ? (
-        <div className="py-12 text-center text-red-500 flex flex-col items-center justify-center">
-          <Loader2 className="w-8 h-8 animate-spin" />
-          <p className="mt-3 font-medium">กำลังโหลดคำขอคืนสินค้า...</p>
-        </div>
-      ) : requests.length === 0 ? (
-        <div className="py-12 text-center text-gray-500 border border-dashed rounded-lg bg-gray-50">
-          <Box className="w-8 h-8 mx-auto mb-2" />
-          <p className="font-medium">ยังไม่มีคำร้องขอคืนสินค้าในขณะนี้</p>
-        </div>
+    <div className="p-6 space-y-4">
+      <h2 className="text-2xl font-semibold mb-4">คำร้องขอคืนสินค้า</h2>
+      {requests.length === 0 ? (
+        <p className="text-gray-500">ยังไม่มีคำร้องขอคืนสินค้า</p>
       ) : (
-        <div className="space-y-5">
-          {requests.map((r) => {
-            const isProcessing = processingId === r.id;
-            return (
-              <div
-                key={r.id}
-                className="p-5 border border-gray-200 rounded-xl bg-gray-50 hover:shadow-md transition duration-200"
-              >
-                <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-                  <div className="flex-1 space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Hash className="w-5 h-5 text-gray-500" />
-                        <span className="text-xl font-bold text-red-600">
-                          คำขอ #{r.id}
-                        </span>
-                      </div>
-                      {getStatusBadge(r.status)}
-                    </div>
+        requests.map((req) => (
+          <Card key={req.id} className="shadow-sm border rounded-lg">
+            <CardContent className="p-4">
+              <div className="flex justify-between items-center mb-3">
+                <div>
+                  <p className="font-semibold">
+                    ผู้ใช้: {req.user?.email || "ไม่ทราบ"}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    วันที่: {new Date(req.createdAt).toLocaleString("th-TH")}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    สถานะ:{" "}
+                    <span
+                      className={`font-medium ${
+                        req.status === "approved"
+                          ? "text-green-600"
+                          : req.status === "rejected"
+                          ? "text-red-600"
+                          : "text-yellow-600"
+                      }`}
+                    >
+                      {req.status === "approved"
+                        ? "อนุมัติแล้ว"
+                        : req.status === "rejected"
+                        ? "ถูกปฏิเสธ"
+                        : "รอดำเนินการ"}
+                    </span>
+                  </p>
+                </div>
 
-                    <div className="text-sm text-gray-700 mt-2">
-                      <Mail className="inline w-4 h-4 mr-1 text-gray-400" />
-                      ผู้ใช้: {r.user?.email || "N/A"}
-                    </div>
-                    <div className="text-sm text-gray-700">
-                      <Box className="inline w-4 h-4 mr-1 text-gray-400" />
-                      คำสั่งซื้อ: {r.orderId}
-                    </div>
-
-                    <div className="text-sm font-semibold text-gray-800 pt-1">
-                      เหตุผล: {r.reason}
-                      {r.customReason && (
-                        <span className="text-gray-500 font-normal">
-                          {" "}
-                          ({r.customReason})
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="font-medium">สินค้าที่ขอคืน:</div>
-                    <ul className="mt-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                      {Array.isArray(r.products) &&
-                        r.products.map((p) => {
-                          const img = normalizeImageUrl(p);
-                          const title = p.product?.title || `#${p.productId}`;
-                          return (
-                            <li
-                              key={p.id}
-                              className="flex items-center gap-3 bg-white p-2 rounded-md border border-gray-100"
-                            >
-                              {img ? (
-                                <img
-                                  src={img}
-                                  alt={title}
-                                  onError={handleImageError}
-                                  className="w-14 h-14 rounded-md object-cover border"
-                                />
-                              ) : (
-                                <div className="w-14 h-14 bg-gray-100 rounded-md flex items-center justify-center text-gray-300 text-xs border">
-                                  ไม่มีรูป
-                                </div>
-                              )}
-                              <div className="text-xs">
-                                <div className="font-semibold text-gray-800 truncate max-w-[140px]">
-                                  {title}
-                                </div>
-                                <div className="text-gray-500">
-                                  {p.count ? `x${p.count}` : ""}
-                                </div>
-                              </div>
-                            </li>
-                          );
-                        })}
-                    </ul>
-                  </div>
-
-                  <div className="flex flex-col gap-2 flex-shrink-0 min-w-[120px]">
-                    {r.status === "PENDING" && (
-                      <>
-                        <button
-                          onClick={() => handleUpdate(r.id, "APPROVED")}
-                          disabled={isProcessing}
-                          className={`px-4 py-2 text-sm font-semibold rounded-lg transition flex items-center justify-center gap-1 ${
-                            isProcessing
-                              ? "bg-blue-200 text-blue-600"
-                              : "bg-green-600 text-white hover:bg-green-700 shadow-md"
-                          }`}
-                        >
-                          {isProcessing ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <CheckCircle className="w-4 h-4" />
-                          )}
-                          อนุมัติ
-                        </button>
-
-                        <button
-                          onClick={() => handleUpdate(r.id, "REJECTED")}
-                          disabled={isProcessing}
-                          className={`px-4 py-2 text-sm font-semibold rounded-lg transition flex items-center justify-center gap-1 ${
-                            isProcessing
-                              ? "bg-blue-200 text-blue-600"
-                              : "bg-red-600 text-white hover:bg-red-700 shadow-md"
-                          }`}
-                        >
-                          {isProcessing ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <XCircle className="w-4 h-4" />
-                          )}
-                          ไม่อนุมัติ
-                        </button>
-                      </>
+                <div className="flex gap-2">
+                  <Button
+                    disabled={updating === req.id || req.status === "approved"}
+                    onClick={() => handleUpdateStatus(req.id, "approved")}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    {updating === req.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      "อนุมัติ"
                     )}
-                  </div>
+                  </Button>
+                  <Button
+                    disabled={updating === req.id || req.status === "rejected"}
+                    onClick={() => handleUpdateStatus(req.id, "rejected")}
+                    className="bg-red-600 hover:bg-red-700 text-white"
+                  >
+                    {updating === req.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      "ปฏิเสธ"
+                    )}
+                  </Button>
                 </div>
               </div>
-            );
-          })}
-        </div>
+
+              {/* แสดงสินค้า */}
+              <div className="border-t pt-3 space-y-2">
+                <p className="font-medium mb-2">สินค้าที่ขอคืน:</p>
+                {req.products?.length ? (
+                  req.products.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center gap-3 border p-2 rounded-md"
+                    >
+                      <img
+                        src={getImageSrc(
+                          item?.product?.image ||
+                            item?.product?.images?.[0] ||
+                            item?.image
+                        )}
+                        alt={item?.product?.title || "สินค้า"}
+                        className="w-16 h-16 object-cover rounded-md border"
+                      />
+                      <div>
+                        <p className="font-semibold">
+                          {item?.product?.title || "ไม่ทราบชื่อสินค้า"}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          จำนวน: {item.count || 1}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-gray-500">ไม่มีข้อมูลสินค้า</p>
+                )}
+              </div>
+
+              {/* เหตุผล */}
+              {req.reason && (
+                <div className="mt-3 text-sm text-gray-700">
+                  <p>
+                    <span className="font-medium">เหตุผล:</span> {req.reason}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ))
       )}
     </div>
   );
