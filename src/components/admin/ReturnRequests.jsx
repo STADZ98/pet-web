@@ -155,6 +155,11 @@ const ReturnRequests = () => {
 
   const getImageSrc = (p) => {
     if (!p) return null;
+    // First try normalizing the whole product object (handles objects like { secure_url, url } or nested product images)
+    const normalized = normalizeImageUrl(p);
+    if (normalized) return normalized;
+
+    // Fall back to picking the first string-like candidate from common fields
     const candidates = [
       p.image,
       p.images?.[0],
