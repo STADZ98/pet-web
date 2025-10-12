@@ -255,6 +255,16 @@ const SidebarAdmin = ({ profile, loading }) => {
       icon: <Users2 className="w-6 h-6 group-hover:text-blue-400 transition" />,
       label: "จัดการผู้ใช้",
     },
+    {
+      to: "reviews",
+      icon: <Users2 className="w-6 h-6 group-hover:text-blue-400 transition" />,
+      label: "จัดการรีวิว",
+    },
+    {
+      to: "return-requests",
+      icon: <Users2 className="w-6 h-6 group-hover:text-blue-400 transition" />,
+      label: "ร้องขอคืนสินค้า",
+    },
     // category dropdown จะถูก render แยก
     {
       to: "product",

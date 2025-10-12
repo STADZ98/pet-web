@@ -26,6 +26,8 @@ const Product = lazy(() => import("../pages/admin/Product"));
 const EditProduct = lazy(() => import("../pages/admin/EditProduct"));
 const Manage = lazy(() => import("../pages/admin/Manage"));
 const ManageOrders = lazy(() => import("../pages/admin/ManageOrders"));
+const AdminReviews = lazy(() => import("../components/admin/AdminReviews"));
+const ReturnRequests = lazy(() => import("../components/admin/ReturnRequests"));
 const FormSubcategory = lazy(() =>
   import("../components/admin/FormSubcategory")
 );
@@ -114,6 +116,8 @@ const router = createBrowserRouter([
       { path: "product", element: <Product /> },
       { path: "product/:id", element: <EditProduct /> },
       { path: "manage", element: <Manage /> },
+      { path: "reviews", element: <AdminReviews /> },
+      { path: "return-requests", element: <ReturnRequests /> },
       { path: "orders", element: <ManageOrders /> },
       { path: "subcategory", element: <FormSubcategory /> },
     ],

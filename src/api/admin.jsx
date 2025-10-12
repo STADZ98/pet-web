@@ -134,3 +134,15 @@ export const getOrderTrackingStatus = (token, trackingNumber, carrier) => {
     params: { trackingNumber, carrier }, // carrier เช่น "THP", "FLASH", "JNT"
   });
 };
+
+// Return requests
+export const getReturnRequestsAdmin = (token, params = {}) =>
+  axios.get(`${API}/admin/return-requests`, {
+    headers: { Authorization: `Bearer ${token}` },
+    params,
+  });
+
+export const updateReturnRequestStatus = (token, id, data) =>
+  axios.patch(`${API}/admin/return-request/${id}`, data, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
