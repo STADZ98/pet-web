@@ -17,38 +17,12 @@ export default defineConfig({
     sourcemap: true,
     rollupOptions: {
       output: {
+        // Temporary: collapse all node_modules into a single vendor chunk to
+        // avoid cross-chunk initialization ordering issues during debugging.
+        // This is a hotfix; once root cause is confirmed we will reintroduce
+        // finer-grained manualChunks splitting.
         manualChunks(id) {
           if (!id.includes("node_modules")) return;
-
-          // Put React and core React packages together (use stricter regex to avoid substring matches)
-          if (/node_modules\/(react|react-dom|scheduler)(\/|$)/.test(id))
-            return "vendor-react";
-
-          // Keep framer-motion/motion in the React vendor chunk to ensure React's runtime
-          // (createContext, scheduler, etc.) is initialized before motion's runtime runs.
-          if (/node_modules\/(framer-motion|motion)(\/|$)/.test(id))
-            return "vendor-react";
-
-          // Also co-locate react-router and related packages with React to avoid
-          // circular-init issues where router's modules expect React APIs to exist.
-          if (
-            /node_modules\/(react-router|react-router-dom|@remix-run|@react-router)(\/|$)/.test(
-              id
-            )
-          )
-            return "vendor-react";
-
-          if (/node_modules\/(chart\.js|react-chartjs-2)(\/|$)/.test(id))
-            return "vendor-chartjs";
-
-          if (/node_modules\/(swiper)(\/|$)/.test(id)) return "vendor-swiper";
-
-          if (/node_modules\/(lodash|moment|numeral)(\/|$)/.test(id))
-            return "vendor-utils";
-
-          if (/node_modules\/(recharts|d3|victory)(\/|$)/.test(id))
-            return "vendor-charts";
-
           return "vendor";
         },
       },
