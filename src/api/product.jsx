@@ -177,3 +177,8 @@ export const listProductBy = async (
 export const listProductByBrand = async (brandName) => {
   return axios.get(`${API}/products?brand=${encodeURIComponent(brandName)}`);
 };
+
+// Lightweight counts per category
+export const productCounts = async () => {
+  return axios.get(`${API}/product-counts`);
+};

@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import useEcomStore from "../store/ecom-store";
 import SidebarFilter from "../components/card/SidebarFilter";
 import { getCategoryName, getCategoryImage } from "../utils/categoryUtils";
+import { productCounts } from "../api/product";
 
 // ================= Loading Skeleton =================
 const LoadingSkeleton = () => (
@@ -22,8 +23,11 @@ const LoadingSkeleton = () => (
 );
 
 const Shop = () => {
-  const getProduct = useEcomStore((state) => state.getProduct);
+  // Don't fetch full product list on Shop page (heavy). Fetch categories only.
+  // Product list is large and not needed for the category landing page — avoid
+  // calling getProduct() here to speed up initial load.
   const products = useEcomStore((state) => state.products);
+  const getCategory = useEcomStore((state) => state.getCategory);
   const categories = useEcomStore((state) => state.categories || []);
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -31,23 +35,67 @@ const Shop = () => {
   // no local searchParams needed in this view
   const navigate = useNavigate();
 
-  // Fetch products on mount
+  // Fetch categories on mount (lightweight). We avoid fetching full product
+  // list here to keep the Shop page fast; product lists will load on the
+  // subcategory/product listing pages instead.
   useEffect(() => {
-    getProduct();
-  }, [getProduct]);
+    if (!categories || categories.length === 0) {
+      getCategory();
+    }
+  }, [getCategory, categories]);
 
-  // Compute product count per category
+  // localCounts stores aggregated counts fetched from the server
+  const [localCounts, setLocalCounts] = useState({});
+
+  // Compute product count per category by merging server counts (fast)
+  // with any in-memory product list counts (if products were loaded elsewhere).
   const productCountMap = useMemo(() => {
-    const map = {};
-    products.forEach((p) => {
-      const name =
-        typeof p.category?.name === "object"
-          ? p.category.name.th || p.category.name.en
-          : p.category?.name;
-      if (name) map[name] = (map[name] || 0) + 1;
-    });
+    const map = { ...(localCounts || {}) };
+    if (products && products.length) {
+      products.forEach((p) => {
+        const name =
+          typeof p.category?.name === "object"
+            ? p.category.name.th || p.category.name.en
+            : p.category?.name;
+        if (name) map[name] = (map[name] || 0) + 1;
+      });
+    }
     return map;
-  }, [products]);
+  }, [localCounts, products]);
+
+  // Fetch aggregated product counts for categories (lightweight)
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await productCounts();
+        if (!mounted) return;
+        const data = res.data || [];
+        const m = {};
+        // server may return { categoryId, name, count }
+        data.forEach((r) => {
+          if (r.name) {
+            m[r.name] = (m[r.name] || 0) + (r.count || 0);
+          } else if (r.categoryId) {
+            // find category name from categories list
+            const cat = (categories || []).find(
+              (c) => Number(c.id || c._id) === Number(r.categoryId)
+            );
+            const catName =
+              (cat && (getCategoryName(cat) || cat.name)) ||
+              String(r.categoryId);
+            m[catName] = (m[catName] || 0) + (r.count || 0);
+          }
+        });
+        setLocalCounts(m);
+      } catch (err) {
+        console.debug("productCounts fetch failed", err?.message || err);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [categories]);
 
   // Filter and sort categories locally for nicer UX
   const visibleCategories = useMemo(() => {
@@ -205,7 +253,7 @@ const Shop = () => {
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/45 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                         <div className="absolute top-3 right-3 bg-white/90 text-xs text-gray-700 px-2 py-1 rounded-full font-medium shadow">
-                          {count} สินค้า
+                          {count > 0 ? `${count} สินค้า` : "ดู"}
                         </div>
                       </div>
 
