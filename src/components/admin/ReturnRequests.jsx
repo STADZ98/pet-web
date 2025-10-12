@@ -9,7 +9,6 @@ const ReturnRequests = () => {
   const token = useEcomStore((s) => s.token);
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
-
   const fetch = async () => {
     if (!token) return;
     setLoading(true);

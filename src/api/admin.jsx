@@ -146,3 +146,15 @@ export const updateReturnRequestStatus = (token, id, data) =>
   axios.patch(`${API}/admin/return-request/${id}`, data, {
     headers: { Authorization: `Bearer ${token}` },
   });
+
+// Admin reviews
+export const getReviewsAdmin = (token, params = {}) =>
+  axios.get(`${API}/admin/reviews`, {
+    headers: { Authorization: `Bearer ${token}` },
+    params,
+  });
+
+export const deleteReviewAdmin = (token, id) =>
+  axios.delete(`${API}/review/${id}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
