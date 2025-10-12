@@ -16,7 +16,7 @@ import {
   Loader2,
   AlertTriangle,
 } from "lucide-react";
-import { getProductImage } from "./adminHelpers";
+import { getProductImage, getImageUrlFromEntry } from "./adminHelpers";
 
 // Helper function for status styling
 const getStatusBadge = (status) => {
@@ -133,38 +133,51 @@ const ReturnRequests = () => {
     try {
       const raw = getProductImage(p);
       if (!raw) return null;
-      // raw may be string or an object-like image entry
-      const url =
-        typeof raw === "string"
-          ? raw
-          : raw?.secure_url || raw?.url || raw?.src || null;
+
+      // raw may be a string or an object-like image entry
+      let url = null;
+      if (typeof raw === "string") url = raw;
+      else if (raw && typeof raw === "object") {
+        url =
+          raw?.secure_url ||
+          raw?.url ||
+          raw?.src ||
+          raw?.path ||
+          raw?.publicUrl ||
+          null;
+        // If still not found, try the generic extractor which handles nested data.attributes
+        if (!url) url = getImageUrlFromEntry(raw);
+      }
+
       if (!url) return null;
 
-      // absolute or protocol-relative (//) urls
-      if (/^(https?:)?\/\//i.test(url)) {
-        // convert http:// to https:// to avoid mixed-content issues
-        if (url.startsWith("http://"))
-          return url.replace("http://", "https://");
-        return url;
-      }
+      url = String(url).trim();
+      // convert http:// to https:// to avoid mixed-content issues
+      if (/^http:\/\//i.test(url)) url = url.replace(/^http:\/\//i, "https://");
+      // protocol-relative
+      if (/^\/\//.test(url)) url = `https:${url}`;
 
       // data/blob URLs
       if (/^data:/i.test(url) || /^blob:/i.test(url)) return url;
 
+      // If absolute already, return
+      if (/^https?:\/\//i.test(url)) return url;
+
       // Relative path: use configured API base if present, prefer VITE_API or VITE_API_URL
       const apiBase =
         import.meta.env.VITE_API || import.meta.env.VITE_API_URL || "";
-      const base = apiBase
-        ? String(apiBase)
-            .replace(/\/api\/?$/i, "")
-            .replace(/\/$/, "")
-        : "";
-      if (base) return `${base}/${String(url).replace(/^\//, "")}`;
+      if (apiBase) {
+        const base = String(apiBase).replace(/\/$/, "");
+        return `${base}/${url.replace(/^\//, "")}`;
+      }
 
-      // fallback: ensure leading slash
-      return String(url).startsWith("/")
-        ? String(url)
-        : `/${String(url).replace(/^\//, "")}`;
+      // As a last resort, prefix with current origin so relative uploads resolve in dev
+      if (typeof window !== "undefined" && window.location) {
+        return `${window.location.origin}/${url.replace(/^\//, "")}`;
+      }
+
+      // fallback to raw
+      return url;
     } catch {
       return null;
     }
