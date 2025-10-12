@@ -4,20 +4,76 @@ import {
   getReturnRequestsAdmin,
   updateReturnRequestStatus,
 } from "../../api/admin";
+import {
+  RefreshCw,
+  Ban,
+  Clock,
+  CheckCircle,
+  XCircle,
+  Mail,
+  Box,
+  Hash,
+  Loader2,
+  AlertTriangle,
+} from "lucide-react";
+
+// Helper function for status styling
+const getStatusBadge = (status) => {
+  switch (status) {
+    case "PENDING":
+      return (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 text-sm font-semibold text-yellow-800 bg-yellow-100 rounded-full">
+          <Clock className="w-4 h-4" /> รอดำเนินการ
+        </span>
+      );
+    case "APPROVED":
+      return (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 text-sm font-semibold text-green-800 bg-green-100 rounded-full">
+          <CheckCircle className="w-4 h-4" /> อนุมัติแล้ว
+        </span>
+      );
+    case "REJECTED":
+      return (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 text-sm font-semibold text-red-800 bg-red-100 rounded-full">
+          <XCircle className="w-4 h-4" /> ไม่อนุมัติ
+        </span>
+      );
+    case "REFUNDED": // Add a possible final status
+      return (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 text-sm font-semibold text-blue-800 bg-blue-100 rounded-full">
+          <CheckCircle className="w-4 h-4" /> คืนเงินสำเร็จ
+        </span>
+      );
+    default:
+      return (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 text-sm font-semibold text-gray-800 bg-gray-100 rounded-full">
+          <AlertTriangle className="w-4 h-4" /> {status}
+        </span>
+      );
+  }
+};
 
 const ReturnRequests = () => {
   const token = useEcomStore((s) => s.token);
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [processingId, setProcessingId] = useState(null); // To disable buttons during update
+
   const fetch = async () => {
     if (!token) return;
     setLoading(true);
     try {
       const res = await getReturnRequestsAdmin(token, { perPage: 50 });
-      setRequests(res.data.returnRequests || []);
+      // Sort by status (PENDING first) and then date
+      const sortedRequests = (res.data.returnRequests || []).sort((a, b) => {
+        if (a.status === "PENDING" && b.status !== "PENDING") return -1;
+        if (a.status !== "PENDING" && b.status === "PENDING") return 1;
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      });
+      setRequests(sortedRequests);
     } catch (e) {
       console.error(e);
-      alert("Failed to load return requests");
+      alert("ไม่สามารถโหลดคำขอคืนสินค้าได้");
     } finally {
       setLoading(false);
     }
@@ -30,70 +86,183 @@ const ReturnRequests = () => {
 
   const handleUpdate = async (id, status) => {
     if (!token) return alert("ต้องล็อกอินเป็นแอดมิน");
+    if (
+      !window.confirm(
+        `คุณแน่ใจหรือไม่ที่จะ ${
+          status === "APPROVED" ? "อนุมัติ" : "ไม่อนุมัติ"
+        } คำขอคืนสินค้า #${id} นี้?`
+      )
+    ) {
+      return;
+    }
+
+    setProcessingId(id);
     try {
       await updateReturnRequestStatus(token, id, { status });
-      fetch();
+      // Optimistically update the status until refetch completes
+      setRequests(requests.map((r) => (r.id === id ? { ...r, status } : r)));
+      // Wait a moment then refetch to get clean data and handle any backend logic
+      setTimeout(fetch, 500);
     } catch (e) {
       console.error(e);
-      alert("อัปเดตไม่สำเร็จ");
+      alert("อัปเดตสถานะไม่สำเร็จ");
+      fetch(); // Refetch on error to restore state
+    } finally {
+      setProcessingId(null);
     }
   };
 
   return (
-    <div className="p-6 bg-white rounded-lg shadow">
-      <h2 className="text-xl font-bold mb-4">ร้องขอคืนสินค้า</h2>
-      {loading ? (
-        <div>Loading...</div>
+    <div className="p-6 bg-white rounded-xl shadow-lg border border-gray-100">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6 border-b pb-3">
+        <div className="flex items-center gap-2">
+          <Ban className="w-7 h-7 text-red-600" />
+          <h2 className="text-2xl font-extrabold text-gray-900">
+            คำร้องขอคืนสินค้าและการคืนเงิน
+          </h2>
+        </div>
+        <button
+          onClick={fetch}
+          disabled={loading}
+          className="flex items-center gap-1 px-4 py-2 text-sm font-semibold text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition disabled:opacity-50"
+        >
+          {loading ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <RefreshCw className="w-4 h-4" />
+          )}
+          รีเฟรช
+        </button>
+      </div>
+
+      {/* Content */}
+      {loading && requests.length === 0 ? (
+        <div className="py-12 text-center text-red-500 flex flex-col items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin" />
+          <p className="mt-3 font-medium">กำลังโหลดคำขอคืนสินค้า...</p>
+        </div>
       ) : requests.length === 0 ? (
-        <div>No return requests</div>
+        <div className="py-12 text-center text-gray-500 border border-dashed rounded-lg bg-gray-50">
+          <Box className="w-8 h-8 mx-auto mb-2" />
+          <p className="font-medium">ยังไม่มีคำร้องขอคืนสินค้าในขณะนี้</p>
+        </div>
       ) : (
-        <div className="space-y-3">
-          {requests.map((r) => (
-            <div
-              key={r.id}
-              className="p-4 border rounded-lg flex flex-col md:flex-row md:justify-between gap-3"
-            >
-              <div>
-                <div className="font-semibold">Request #{r.id}</div>
-                <div className="text-sm text-gray-600">
-                  User: {r.user?.email}
-                </div>
-                <div className="text-sm text-gray-600">Order: {r.orderId}</div>
-                <div className="text-sm">Status: {r.status}</div>
-                <div className="text-sm text-gray-700">
-                  Reason: {r.reason}{" "}
-                  {r.customReason ? `(${r.customReason})` : ""}
-                </div>
-                <div className="text-sm mt-2">
-                  Products:
-                  <ul className="list-disc pl-5">
-                    {Array.isArray(r.products) &&
-                      r.products.map((p) => (
-                        <li key={p.id}>{p.product?.title || p.productId}</li>
-                      ))}
-                  </ul>
+        <div className="space-y-5">
+          {requests.map((r) => {
+            const isProcessing = processingId === r.id;
+            return (
+              <div
+                key={r.id}
+                className="p-5 border border-gray-200 rounded-xl bg-gray-50 hover:shadow-md transition duration-200"
+              >
+                <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+                  {/* Request Info */}
+                  <div className="flex-1 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Hash className="w-5 h-5 text-gray-500" />
+                        <span className="text-xl font-bold text-red-600">
+                          คำขอ #{r.id}
+                        </span>
+                      </div>
+                      {getStatusBadge(r.status)}
+                    </div>
+
+                    <div className="text-sm text-gray-700 mt-2">
+                      <Mail className="inline w-4 h-4 mr-1 text-gray-400" />
+                      **ผู้ใช้:** {r.user?.email || "N/A"}
+                    </div>
+                    <div className="text-sm text-gray-700">
+                      <Box className="inline w-4 h-4 mr-1 text-gray-400" />
+                      **คำสั่งซื้อ:** {r.orderId}
+                    </div>
+
+                    <div className="text-sm font-semibold text-gray-800 pt-1">
+                      **เหตุผล:** {r.reason}
+                      {r.customReason && (
+                        <span className="text-gray-500 font-normal">
+                          {" "}
+                          ({r.customReason})
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-sm text-gray-600 border-t pt-2 mt-2">
+                      **สินค้าที่ขอคืน:**
+                      <ul className="list-disc list-inside ml-2 text-xs font-mono">
+                        {Array.isArray(r.products) &&
+                          r.products.map((p) => (
+                            <li key={p.id}>
+                              {p.product?.title || p.productId}
+                              {p.count && ` (x${p.count})`}
+                            </li>
+                          ))}
+                      </ul>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex flex-col gap-2 flex-shrink-0 min-w-[120px]">
+                    {/* Approve Button */}
+                    {r.status !== "APPROVED" && r.status !== "REJECTED" && (
+                      <button
+                        onClick={() => handleUpdate(r.id, "APPROVED")}
+                        disabled={isProcessing}
+                        className={`px-4 py-2 text-sm font-semibold rounded-lg transition flex items-center justify-center gap-1 ${
+                          isProcessing
+                            ? "bg-blue-200 text-blue-600"
+                            : "bg-green-600 text-white hover:bg-green-700 shadow-md"
+                        }`}
+                      >
+                        {isProcessing ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <CheckCircle className="w-4 h-4" />
+                        )}
+                        อนุมัติ
+                      </button>
+                    )}
+
+                    {/* Reject Button */}
+                    {r.status !== "APPROVED" && r.status !== "REJECTED" && (
+                      <button
+                        onClick={() => handleUpdate(r.id, "REJECTED")}
+                        disabled={isProcessing}
+                        className={`px-4 py-2 text-sm font-semibold rounded-lg transition flex items-center justify-center gap-1 ${
+                          isProcessing
+                            ? "bg-blue-200 text-blue-600"
+                            : "bg-red-600 text-white hover:bg-red-700 shadow-md"
+                        }`}
+                      >
+                        {isProcessing ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <XCircle className="w-4 h-4" />
+                        )}
+                        ไม่อนุมัติ
+                      </button>
+                    )}
+
+                    {/* Status Display if already finalized */}
+                    {(r.status === "APPROVED" || r.status === "REJECTED") && (
+                      <div className="text-xs text-center text-gray-500 pt-2">
+                        ดำเนินการแล้วเมื่อ:{" "}
+                        {new Date(
+                          r.updatedAt || r.createdAt
+                        ).toLocaleDateString("th-TH")}
+                      </div>
+                    )}
+
+                    {isProcessing && (
+                      <div className="text-xs text-center text-blue-600 font-medium">
+                        กำลังอัปเดต...
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                {r.status !== "APPROVED" && (
-                  <button
-                    onClick={() => handleUpdate(r.id, "APPROVED")}
-                    className="px-3 py-2 bg-green-500 text-white rounded"
-                  >
-                    Approve
-                  </button>
-                )}
-                {r.status !== "REJECTED" && (
-                  <button
-                    onClick={() => handleUpdate(r.id, "REJECTED")}
-                    className="px-3 py-2 bg-red-500 text-white rounded"
-                  >
-                    Reject
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
