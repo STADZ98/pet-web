@@ -132,79 +132,131 @@ const ReturnRequests = () => {
 
   const getImageSrc = (p) => normalizeImageUrl(p);
 
-  // Try alternate image sources (secure_url, url, path) and API base before final fallback.
-  const handleImageError = (e, p) => {
-    try {
-      const candidates = [];
+  // Try alternate image sources (secure_url, url, path) and API/origin variants before final fallback.
+  // This async loader probes candidate URLs (including API variants and origin variants)
+  // and only uses a URL after a successful load. If none succeed, it sets the inline SVG fallback.
+  const handleImageError = async (e, p) => {
+    const candidates = [];
 
-      const pushFromEntry = (entry) => {
-        if (!entry) return;
-        if (typeof entry === "string") {
-          candidates.push(entry);
-          return;
-        }
-        if (Array.isArray(entry)) {
-          for (const it of entry) pushFromEntry(it);
-          return;
-        }
-        // object
-        const fields = ["secure_url", "url", "path", "image", "src"];
-        for (const f of fields) if (entry[f]) candidates.push(entry[f]);
-        if (entry.data && typeof entry.data === "object") {
-          const nested = entry.data.attributes || entry.data;
-          for (const f of fields) if (nested[f]) candidates.push(nested[f]);
-        }
-      };
+    const pushFromEntry = (entry) => {
+      if (!entry) return;
+      if (typeof entry === "string") {
+        candidates.push(entry);
+        return;
+      }
+      if (Array.isArray(entry)) {
+        for (const it of entry) pushFromEntry(it);
+        return;
+      }
+      // object
+      const fields = ["secure_url", "url", "path", "image", "src"];
+      for (const f of fields) if (entry[f]) candidates.push(entry[f]);
+      if (entry.data && typeof entry.data === "object") {
+        const nested = entry.data.attributes || entry.data;
+        for (const f of fields) if (nested[f]) candidates.push(nested[f]);
+      }
+    };
 
-      // gather from product/variant/fallbacks
-      pushFromEntry(p?.product);
-      pushFromEntry(p?.variant);
-      pushFromEntry(p?.product?.images || p?.product?.image);
-      pushFromEntry(p?.variant?.images || p?.variant?.image);
-      pushFromEntry(
-        p?.image || p?.images || p?.productImage || p?.variantImage
-      );
+    // gather from product/variant/fallbacks
+    pushFromEntry(p?.product);
+    pushFromEntry(p?.variant);
+    pushFromEntry(p?.product?.images || p?.product?.image);
+    pushFromEntry(p?.variant?.images || p?.variant?.image);
+    pushFromEntry(p?.image || p?.images || p?.productImage || p?.variantImage);
 
-      // dedupe and try each candidate
-      const tried = new Set();
-      for (let c of candidates) {
-        if (!c) continue;
-        c = String(c).trim();
-        if (!c) continue;
-        if (tried.has(c)) continue;
-        tried.add(c);
+    const tried = new Set();
 
-        // upgrade protocol-relative
-        if (/^\/\//.test(c)) c = `https:${c}`;
-        // upgrade http
-        if (/^http:\/\//i.test(c)) c = c.replace(/^http:\/\//i, "https://");
-
-        // if relative path, try prefixing API base
-        if (!/^https?:\/\//i.test(c) && API) {
-          const base = String(API).replace(/\/$/, "");
-          c = `${base}/${c.replace(/^\//, "")}`;
-        }
-
-        // set and let browser attempt to load this candidate
+    const loadImage = (url) =>
+      new Promise((resolve) => {
         try {
-          e.target.onerror = null;
-          e.target.src = c;
-          return;
+          const tmp = new Image();
+          tmp.onload = () => resolve(true);
+          tmp.onerror = () => resolve(false);
+          tmp.src = url;
         } catch {
-          // ignore and continue to next candidate
+          resolve(false);
+        }
+      });
+
+    const makeUrlVariants = (raw) => {
+      if (!raw) return [];
+      let s = String(raw).trim();
+      if (!s) return [];
+      const vars = [];
+
+      // protocol-relative -> https
+      if (/^\/\//.test(s)) vars.push(`https:${s}`);
+      // upgrade http -> https
+      if (/^http:\/\//i.test(s))
+        vars.push(s.replace(/^http:\/\//i, "https://"));
+      // absolute
+      if (/^https?:\/\//i.test(s)) vars.push(s);
+
+      // relative paths -> try API and origin variants
+      if (!/^https?:\/\//i.test(s)) {
+        const cleaned = s.replace(/^\//, "");
+        try {
+          const bases = [];
+          if (API) bases.push(String(API));
+          if (API && /\/api\/?$/i.test(API))
+            bases.push(String(API).replace(/\/api\/?$/i, ""));
+          if (typeof window !== "undefined" && window.location)
+            bases.push(window.location.origin);
+          // also try origin + /api in case images are served under /api
+          if (typeof window !== "undefined" && window.location)
+            bases.push(`${window.location.origin.replace(/\/$/, "")}/api`);
+
+          for (let b of bases) {
+            if (!b) continue;
+            b = String(b).replace(/\/$/, "");
+            vars.push(`${b}/${cleaned}`);
+          }
+        } catch (err) {
+          // ignore window access errors
+          void err;
         }
       }
 
-      // final fallback -> inline data URL
-      e.target.onerror = null;
-      e.target.src = NO_IMAGE_DATA_URL;
-    } catch {
-      try {
-        e.target.onerror = null;
-        e.target.src = NO_IMAGE_DATA_URL;
-      } catch {
-        // ignore
+      return vars;
+    };
+
+    for (const entry of candidates) {
+      const variants = makeUrlVariants(entry);
+      for (const v of variants) {
+        if (!v) continue;
+        const key = String(v);
+        if (tried.has(key)) continue;
+        tried.add(key);
+        // probe the URL
+        try {
+          const ok = await loadImage(v);
+          if (ok) {
+            try {
+              e.target.onerror = null;
+            } catch (err) {
+              void err;
+            }
+            e.target.src = v;
+            return;
+          }
+        } catch (err) {
+          // ignore and try next (probe failure)
+          void err;
+        }
       }
+    }
+
+    // final fallback
+    try {
+      e.target.onerror = null;
+    } catch (err) {
+      void err;
+    }
+    try {
+      e.target.src = NO_IMAGE_DATA_URL;
+    } catch (err) {
+      // ignore (window access or other error)
+      void err;
     }
   };
 
