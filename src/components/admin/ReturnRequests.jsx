@@ -3,6 +3,7 @@ import useEcomStore from "../../store/ecom-store";
 import {
   getReturnRequestsAdmin,
   updateReturnRequestStatus,
+  API,
 } from "../../api/admin";
 import {
   RefreshCw,
@@ -91,9 +92,9 @@ const ReturnRequests = () => {
     if (!token) return alert("ต้องล็อกอินเป็นแอดมิน");
     if (
       !window.confirm(
-        `คุณแน่ใจหรือไม่ที่จะ ${
+        `คุณแน่ใจจะ ${
           status === "APPROVED" ? "อนุมัติ" : "ไม่อนุมัติ"
-        } คำขอคืนสินค้า #${id} นี้?`
+        } คำขอคืนสินค้า #${id} ?`
       )
     ) {
       return;
@@ -130,6 +131,82 @@ const ReturnRequests = () => {
     "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 24 24' fill='none' stroke='%23d1d5db' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='2' ry='2'/><path d='M3 15l4-4 4 4 6-6 4 4'/></svg>";
 
   const getImageSrc = (p) => normalizeImageUrl(p);
+
+  // Try alternate image sources (secure_url, url, path) and API base before final fallback.
+  const handleImageError = (e, p) => {
+    try {
+      const candidates = [];
+
+      const pushFromEntry = (entry) => {
+        if (!entry) return;
+        if (typeof entry === "string") {
+          candidates.push(entry);
+          return;
+        }
+        if (Array.isArray(entry)) {
+          for (const it of entry) pushFromEntry(it);
+          return;
+        }
+        // object
+        const fields = ["secure_url", "url", "path", "image", "src"];
+        for (const f of fields) if (entry[f]) candidates.push(entry[f]);
+        if (entry.data && typeof entry.data === "object") {
+          const nested = entry.data.attributes || entry.data;
+          for (const f of fields) if (nested[f]) candidates.push(nested[f]);
+        }
+      };
+
+      // gather from product/variant/fallbacks
+      pushFromEntry(p?.product);
+      pushFromEntry(p?.variant);
+      pushFromEntry(p?.product?.images || p?.product?.image);
+      pushFromEntry(p?.variant?.images || p?.variant?.image);
+      pushFromEntry(
+        p?.image || p?.images || p?.productImage || p?.variantImage
+      );
+
+      // dedupe and try each candidate
+      const tried = new Set();
+      for (let c of candidates) {
+        if (!c) continue;
+        c = String(c).trim();
+        if (!c) continue;
+        if (tried.has(c)) continue;
+        tried.add(c);
+
+        // upgrade protocol-relative
+        if (/^\/\//.test(c)) c = `https:${c}`;
+        // upgrade http
+        if (/^http:\/\//i.test(c)) c = c.replace(/^http:\/\//i, "https://");
+
+        // if relative path, try prefixing API base
+        if (!/^https?:\/\//i.test(c) && API) {
+          const base = String(API).replace(/\/$/, "");
+          c = `${base}/${c.replace(/^\//, "")}`;
+        }
+
+        // set and let browser attempt to load this candidate
+        try {
+          e.target.onerror = null;
+          e.target.src = c;
+          return;
+        } catch {
+          // ignore and continue to next candidate
+        }
+      }
+
+      // final fallback -> inline data URL
+      e.target.onerror = null;
+      e.target.src = NO_IMAGE_DATA_URL;
+    } catch {
+      try {
+        e.target.onerror = null;
+        e.target.src = NO_IMAGE_DATA_URL;
+      } catch {
+        // ignore
+      }
+    }
+  };
 
   return (
     <div className="p-6 bg-white rounded-xl shadow-lg border border-gray-100">
@@ -229,10 +306,7 @@ const ReturnRequests = () => {
                                 <img
                                   src={img}
                                   alt={title}
-                                  onError={(e) => {
-                                    e.target.onerror = null;
-                                    e.target.src = NO_IMAGE_DATA_URL;
-                                  }}
+                                  onError={(e) => handleImageError(e, p)}
                                   className="w-14 h-14 rounded-md object-cover border"
                                 />
                               ) : (
@@ -405,10 +479,7 @@ const ReturnRequests = () => {
                                     <img
                                       src={img}
                                       alt={title}
-                                      onError={(e) => {
-                                        e.target.onerror = null;
-                                        e.target.src = NO_IMAGE_DATA_URL;
-                                      }}
+                                      onError={(e) => handleImageError(e, p)}
                                       className="w-20 h-20 rounded-md object-cover border"
                                     />
                                   ) : (
