@@ -24,9 +24,19 @@ export default defineConfig({
           if (/node_modules\/(react|react-dom|scheduler)(\/|$)/.test(id))
             return "vendor-react";
 
-          // Extract framer-motion into its own chunk to avoid circular init between shared runtime and React
+          // Keep framer-motion/motion in the React vendor chunk to ensure React's runtime
+          // (createContext, scheduler, etc.) is initialized before motion's runtime runs.
           if (/node_modules\/(framer-motion|motion)(\/|$)/.test(id))
-            return "vendor-framer-motion";
+            return "vendor-react";
+
+          // Also co-locate react-router and related packages with React to avoid
+          // circular-init issues where router's modules expect React APIs to exist.
+          if (
+            /node_modules\/(react-router|react-router-dom|@remix-run|@react-router)(\/|$)/.test(
+              id
+            )
+          )
+            return "vendor-react";
 
           if (/node_modules\/(chart\.js|react-chartjs-2)(\/|$)/.test(id))
             return "vendor-chartjs";
