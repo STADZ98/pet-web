@@ -1,64 +1,75 @@
-// ✅ เพิ่มเส้นทางสำหรับ subsubcategory
-// (import อยู่แล้วด้านล่าง)
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 
-// Public Pages
-import Home from "../pages/Home";
-import Shop from "../pages/Shop";
-import Cart from "../pages/Cart";
-import History from "../pages/user/History";
-import Success from "../pages/user/Success";
-import Checkout from "../pages/Checkout";
-import Login from "../pages/auth/Login";
-import Register from "../pages/auth/Register";
+// Lazy-loaded pages (reduces initial bundle)
+const Home = lazy(() => import("../pages/Home"));
+const Shop = lazy(() => import("../pages/Shop"));
+const Cart = lazy(() => import("../pages/Cart"));
+const History = lazy(() => import("../pages/user/History"));
+const Success = lazy(() => import("../pages/user/Success"));
+const Checkout = lazy(() => import("../pages/Checkout"));
+const Login = lazy(() => import("../pages/auth/Login"));
+const Register = lazy(() => import("../pages/auth/Register"));
 
-import Layout from "../layouts/Layout";
-import LayoutAdmin from "../layouts/LayoutAdmin";
-import LayoutUser from "../layouts/LayoutUser";
+const Layout = lazy(() => import("../layouts/Layout"));
+const LayoutAdmin = lazy(() => import("../layouts/LayoutAdmin"));
+const LayoutUser = lazy(() => import("../layouts/LayoutUser"));
 
 // Admin Pages
-import Dashbord from "../pages/admin/Dashboard";
-import Category from "../pages/admin/Category";
-import SubCategoryPage from "../pages/admin/SubCategoryPage";
-import SubSubCategoryPage from "../pages/admin/SubSubCategoryPage";
-import Product from "../pages/admin/Product";
-import EditProduct from "../pages/admin/EditProduct";
-import Manage from "../pages/admin/Manage";
-import ManageOrders from "../pages/admin/ManageOrders";
-import FormSubcategory from "../components/admin/FormSubcategory";
+const Dashbord = lazy(() => import("../pages/admin/Dashboard"));
+const Category = lazy(() => import("../pages/admin/Category"));
+const SubCategoryPage = lazy(() => import("../pages/admin/SubCategoryPage"));
+const SubSubCategoryPage = lazy(() =>
+  import("../pages/admin/SubSubCategoryPage")
+);
+const Product = lazy(() => import("../pages/admin/Product"));
+const EditProduct = lazy(() => import("../pages/admin/EditProduct"));
+const Manage = lazy(() => import("../pages/admin/Manage"));
+const ManageOrders = lazy(() => import("../pages/admin/ManageOrders"));
+const FormSubcategory = lazy(() =>
+  import("../components/admin/FormSubcategory")
+);
+
 // User Pages
-import HomeUser from "../pages/user/HomeUser";
-import Payment from "../pages/user/Payment";
-import Profile from "../pages/user/Profile";
+const HomeUser = lazy(() => import("../pages/user/HomeUser"));
+const Payment = lazy(() => import("../pages/user/Payment"));
+const Profile = lazy(() => import("../pages/user/Profile"));
 
 // Product Detail Page
-import ProductDetail from "../pages/ProductDetail";
+const ProductDetail = lazy(() => import("../pages/ProductDetail"));
 
-// ✅ Category Page (หมวดหมู่สินค้า)
-import CategoryPage from "../pages/CategoryPage";
+// Category Page
+const CategoryPage = lazy(() => import("../pages/CategoryPage"));
 
 // Protected Routes
-import ProtectRouteAdmin from "./ProtecRouteAdmin";
-import ProtectRouteUser from "./ProtectRouteUser";
+const ProtectRouteAdmin = lazy(() => import("./ProtecRouteAdmin"));
+const ProtectRouteUser = lazy(() => import("./ProtectRouteUser"));
 
-// เพิ่มบรรทัดนี้
+const SubCategory = lazy(() => import("../pages/SubCategory"));
+const SubSubCategory = lazy(() => import("../pages/SubSubCategory"));
+const ProductListingPage = lazy(() => import("../pages/ProductListingPage"));
+const BrandPage = lazy(() => import("../pages/BrandPage"));
 
-import SubCategory from "../pages/SubCategory";
-import SubSubCategory from "../pages/SubSubCategory";
-import ProductListingPage from "../pages/ProductListingPage";
-import BrandPage from "../pages/BrandPage";
-
-import ArticleDetail from "../components/article/ArticleDetail";
-import ArticleDetail2 from "../components/article/ArticleDetail2";
-import ArticleDetail3 from "../components/article/ArticleDetail3";
-import ArticleDetail4 from "../components/article/ArticleDetail4";
-import ArticleDetail5 from "../components/article/ArticleDetail5";
-import ArticleDetail6 from "../components/article/ArticleDetail6";
-import Articles from "../pages/Articles";
-import About from "../pages/About";
-import Contact from "../pages/Contact";
-import Track from "../pages/Track";
+const ArticleDetail = lazy(() => import("../components/article/ArticleDetail"));
+const ArticleDetail2 = lazy(() =>
+  import("../components/article/ArticleDetail2")
+);
+const ArticleDetail3 = lazy(() =>
+  import("../components/article/ArticleDetail3")
+);
+const ArticleDetail4 = lazy(() =>
+  import("../components/article/ArticleDetail4")
+);
+const ArticleDetail5 = lazy(() =>
+  import("../components/article/ArticleDetail5")
+);
+const ArticleDetail6 = lazy(() =>
+  import("../components/article/ArticleDetail6")
+);
+const Articles = lazy(() => import("../pages/Articles"));
+const About = lazy(() => import("../pages/About"));
+const Contact = lazy(() => import("../pages/Contact"));
+const Track = lazy(() => import("../pages/Track"));
 
 const router = createBrowserRouter([
   {
@@ -72,19 +83,13 @@ const router = createBrowserRouter([
       { path: "login", element: <Login /> },
       { path: "register", element: <Register /> },
 
-      // ✅ เพิ่มเส้นทางนี้
       { path: "category/:id", element: <CategoryPage /> },
       { path: "category", element: <CategoryPage /> },
       { path: "/product/:id", element: <ProductDetail /> },
-      // ✅ เพิ่มเส้นทางสำหรับ subcategory
       { path: "shop/subcategory", element: <SubCategory /> },
-      // ✅ เพิ่มเส้นทางสำหรับ subsubcategory
       { path: "shop/subsubcategory", element: <SubSubCategory /> },
-      // ✅ เพิ่มเส้นทางสำหรับ subsubsubcategory (สินค้าใน subsubcategory)
       { path: "shop/productListingPage", element: <ProductListingPage /> },
-      // ✅ เพิ่มเส้นทางสำหรับ brand page
       { path: "shop/brand", element: <BrandPage /> },
-      // ...existing code...
 
       { path: "article/1", element: <ArticleDetail /> },
       { path: "article/2", element: <ArticleDetail2 /> },
@@ -103,7 +108,6 @@ const router = createBrowserRouter([
     element: <ProtectRouteAdmin element={<LayoutAdmin />} />,
     children: [
       { index: true, element: <Dashbord /> },
-
       { path: "category", element: <Category /> },
       { path: "category/sub", element: <SubCategoryPage /> },
       { path: "category/subsub", element: <SubSubCategoryPage /> },
@@ -128,7 +132,11 @@ const router = createBrowserRouter([
 ]);
 
 const AppRoutes = () => {
-  return <RouterProvider router={router} />;
+  return (
+    <Suspense fallback={<div />}>
+      <RouterProvider router={router} />
+    </Suspense>
+  );
 };
 
 export default AppRoutes;
