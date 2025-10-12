@@ -133,16 +133,38 @@ const ReturnRequests = () => {
     try {
       const raw = getProductImage(p);
       if (!raw) return null;
-      const s = String(raw);
-      if (s.startsWith("data:")) return s;
-      if (/^https?:\/\//i.test(s)) return s;
-      if (s.startsWith("//")) return window.location.protocol + s;
-      const prefix = import.meta.env.VITE_API || "";
-      if (prefix)
-        return String(prefix).replace(/\/$/, "") + "/" + s.replace(/^\//, "");
-      return (
-        window.location.origin.replace(/\/$/, "") + "/" + s.replace(/^\//, "")
-      );
+      // raw may be string or an object-like image entry
+      const url =
+        typeof raw === "string"
+          ? raw
+          : raw?.secure_url || raw?.url || raw?.src || null;
+      if (!url) return null;
+
+      // absolute or protocol-relative (//) urls
+      if (/^(https?:)?\/\//i.test(url)) {
+        // convert http:// to https:// to avoid mixed-content issues
+        if (url.startsWith("http://"))
+          return url.replace("http://", "https://");
+        return url;
+      }
+
+      // data/blob URLs
+      if (/^data:/i.test(url) || /^blob:/i.test(url)) return url;
+
+      // Relative path: use configured API base if present, prefer VITE_API or VITE_API_URL
+      const apiBase =
+        import.meta.env.VITE_API || import.meta.env.VITE_API_URL || "";
+      const base = apiBase
+        ? String(apiBase)
+            .replace(/\/api\/?$/i, "")
+            .replace(/\/$/, "")
+        : "";
+      if (base) return `${base}/${String(url).replace(/^\//, "")}`;
+
+      // fallback: ensure leading slash
+      return String(url).startsWith("/")
+        ? String(url)
+        : `/${String(url).replace(/^\//, "")}`;
     } catch {
       return null;
     }
