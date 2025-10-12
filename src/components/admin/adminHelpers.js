@@ -224,8 +224,19 @@ export const normalizeImageUrl = (pOrEntry) => {
     if (/^https?:\/\//i.test(url)) return url;
 
     // Relative path: try VITE_API / VITE_API_URL then fallback to origin
-    const apiBase =
+    // Prefer VITE API env vars. If they are not set (e.g. some dev setups),
+    // attempt to read a runtime-injected global `window.__APP_API__` which
+    // the hosting app can set. Fallback to empty and let window.location be
+    // used below.
+    let apiBase =
       import.meta.env.VITE_API || import.meta.env.VITE_API_URL || "";
+    try {
+      if (!apiBase && typeof window !== "undefined" && window.__APP_API__) {
+        apiBase = window.__APP_API__;
+      }
+    } catch {
+      /* ignore */
+    }
     if (apiBase) {
       const base = String(apiBase).replace(/\/$/, "");
       return `${base}/${url.replace(/^\//, "")}`;
