@@ -61,6 +61,11 @@ const ReturnRequests = () => {
       typeof newStatus === "string" ? newStatus.toUpperCase() : newStatus;
     try {
       setUpdating(id);
+      // Debug: log outgoing payload
+      console.debug("[DEBUG] updateReturnRequestStatus payload:", {
+        id,
+        status: mappedStatus,
+      });
       await updateReturnRequestStatus(token, id, { status: mappedStatus });
       // update local state to reflect server value (uppercase)
       setRequests((prev) =>
@@ -69,7 +74,18 @@ const ReturnRequests = () => {
         )
       );
     } catch (err) {
-      console.error("Failed to update status:", err);
+      // Log full Axios error details so we can see response body/status
+      console.error(
+        "Failed to update status:",
+        err && err.toJSON ? err.toJSON() : err
+      );
+      if (err && err.response) {
+        console.error(
+          "Server response (status, data):",
+          err.response.status,
+          err.response.data
+        );
+      }
     } finally {
       setUpdating(null);
     }

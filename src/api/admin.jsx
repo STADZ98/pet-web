@@ -144,10 +144,16 @@ export const getReturnRequestsAdmin = (token, params = {}) =>
     params,
   });
 
-export const updateReturnRequestStatus = (token, id, data) =>
-  axios.patch(`${API}/admin/return-request/${id}`, data, {
+export const updateReturnRequestStatus = (token, id, data) => {
+  // Ensure status is sent as server-expected uppercase enum if provided
+  const payload = { ...data };
+  if (payload.status && typeof payload.status === "string") {
+    payload.status = payload.status.trim().toUpperCase();
+  }
+  return axios.patch(`${API}/admin/return-request/${id}`, payload, {
     headers: { Authorization: `Bearer ${token}` },
   });
+};
 
 // Admin reviews
 export const getReviewsAdmin = (token, params = {}) =>
