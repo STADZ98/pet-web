@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from "react";
-import { getReturnRequestsAdmin, updateReturnRequestStatus } from "@/api/admin";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import React, { useEffect, useState, useCallback } from "react";
+import {
+  getReturnRequestsAdmin,
+  updateReturnRequestStatus,
+  API,
+} from "../../api/admin";
 import { Loader2 } from "lucide-react";
-import useAuthStore from "@/store/auth-store";
-import { API } from "@/api/admin";
+import useEcomStore from "../../store/ecom-store";
 
 // ✅ ฟังก์ชันช่วยจัดการ URL ภาพทุกกรณี
 const getImageSrc = (image) => {
@@ -29,16 +30,12 @@ const getImageSrc = (image) => {
 };
 
 const ReturnRequests = () => {
-  const { token } = useAuthStore();
+  const token = useEcomStore((s) => s.token);
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(null);
 
-  useEffect(() => {
-    if (token) fetchRequests();
-  }, [token]);
-
-  const fetchRequests = async () => {
+  const fetchRequests = useCallback(async () => {
     try {
       setLoading(true);
       const res = await getReturnRequestsAdmin(token);
@@ -52,7 +49,11 @@ const ReturnRequests = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    if (token) fetchRequests();
+  }, [token, fetchRequests]);
 
   const handleUpdateStatus = async (id, newStatus) => {
     try {
@@ -84,8 +85,8 @@ const ReturnRequests = () => {
         <p className="text-gray-500">ยังไม่มีคำร้องขอคืนสินค้า</p>
       ) : (
         requests.map((req) => (
-          <Card key={req.id} className="shadow-sm border rounded-lg">
-            <CardContent className="p-4">
+          <div key={req.id} className="shadow-sm border rounded-lg">
+            <div className="p-4">
               <div className="flex justify-between items-center mb-3">
                 <div>
                   <p className="font-semibold">
@@ -115,28 +116,28 @@ const ReturnRequests = () => {
                 </div>
 
                 <div className="flex gap-2">
-                  <Button
+                  <button
                     disabled={updating === req.id || req.status === "approved"}
                     onClick={() => handleUpdateStatus(req.id, "approved")}
-                    className="bg-green-600 hover:bg-green-700 text-white"
+                    className="px-3 py-1 rounded-md text-white bg-green-600 hover:bg-green-700 disabled:opacity-60"
                   >
                     {updating === req.id ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
                       "อนุมัติ"
                     )}
-                  </Button>
-                  <Button
+                  </button>
+                  <button
                     disabled={updating === req.id || req.status === "rejected"}
                     onClick={() => handleUpdateStatus(req.id, "rejected")}
-                    className="bg-red-600 hover:bg-red-700 text-white"
+                    className="px-3 py-1 rounded-md text-white bg-red-600 hover:bg-red-700 disabled:opacity-60"
                   >
                     {updating === req.id ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
                       "ปฏิเสธ"
                     )}
-                  </Button>
+                  </button>
                 </div>
               </div>
 
@@ -181,8 +182,8 @@ const ReturnRequests = () => {
                   </p>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         ))
       )}
     </div>
