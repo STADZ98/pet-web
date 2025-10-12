@@ -126,15 +126,14 @@ const ReturnRequests = () => {
         "[DEBUG] getReturnRequestsAdmin response:",
         res?.data?.returnRequests
       );
-      const sortedRequests = (res.data.returnRequests || []).sort((a, b) => {
-        // Also log each request's products (compact)
-        (res.data.returnRequests || []).forEach((r) =>
-          console.debug("[DEBUG] request ", r.id, " products:", r.products)
-        );
-        if (a.status === "PENDING" && b.status !== "PENDING") return -1;
-        if (a.status !== "PENDING" && b.status === "PENDING") return 1;
-        return new Date(b.createdAt) - new Date(a.createdAt);
-      });
+      // Sort: PENDING first, then by newest createdAt
+      const sortedRequests = (res.data.returnRequests || [])
+        .slice()
+        .sort((a, b) => {
+          if (a.status === "PENDING" && b.status !== "PENDING") return -1;
+          if (a.status !== "PENDING" && b.status === "PENDING") return 1;
+          return new Date(b.createdAt) - new Date(a.createdAt);
+        });
       setRequests(sortedRequests);
     } catch (e) {
       console.error(e);
@@ -163,7 +162,10 @@ const ReturnRequests = () => {
     setProcessingId(id);
     try {
       await updateReturnRequestStatus(token, id, { status, adminNote });
-      setRequests(requests.map((r) => (r.id === id ? { ...r, status } : r)));
+      // use functional updater to avoid stale closure
+      setRequests((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, status } : r))
+      );
       setTimeout(fetch, 500);
     } catch (e) {
       console.error(e);
@@ -342,7 +344,7 @@ const ReturnRequests = () => {
                       รายละเอียด
                     </button>
 
-                    {r.status !== "APPROVED" && r.status !== "REJECTED" && (
+                    {r.status === "PENDING" && (
                       <>
                         <button
                           onClick={() => handleUpdate(r.id, "APPROVED")}
