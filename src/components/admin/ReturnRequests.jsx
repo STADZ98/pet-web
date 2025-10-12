@@ -149,6 +149,20 @@ const ReturnRequests = () => {
         if (!url) url = getImageUrlFromEntry(raw);
       }
 
+      // If still not found, mirror the simple fallback used in HistoryCard.ReturnProductModal.jsx
+      // which often stores images as arrays where first element is either a string or an object with a `url` field.
+      if (!url) {
+        const tryFirst =
+          p?.variant?.images?.[0]?.url ||
+          p?.variant?.images?.[0] ||
+          p?.variant?.image ||
+          p?.product?.images?.[0]?.url ||
+          p?.product?.images?.[0] ||
+          p?.product?.image ||
+          null;
+        if (tryFirst) url = tryFirst;
+      }
+
       if (!url) return null;
 
       url = String(url).trim();

@@ -25,16 +25,17 @@ const ReturnProductModal = ({
   step,
   setStep,
 }) => {
-  if (!order) return null;
-
+  // Call hooks unconditionally; guard inside callbacks for missing data
   // --- Logic Optimization with useMemo ---
   const selectedItems = useMemo(() => {
+    if (!order || !Array.isArray(order.products)) return [];
     return order.products.filter((p) =>
       selectedReturnProducts.includes(p.product._id || p.product.id)
     );
-  }, [order.products, selectedReturnProducts]);
+  }, [order, selectedReturnProducts]);
 
   const refundTotal = useMemo(() => {
+    if (!selectedItems || selectedItems.length === 0) return 0;
     return selectedItems.reduce(
       (sum, p) => sum + p.count * (p.product.price || 0),
       0
