@@ -56,11 +56,17 @@ const ReturnRequests = () => {
   }, [token, fetchRequests]);
 
   const handleUpdateStatus = async (id, newStatus) => {
+    // Server expects uppercase status labels: PENDING, APPROVED, REJECTED
+    const mappedStatus =
+      typeof newStatus === "string" ? newStatus.toUpperCase() : newStatus;
     try {
       setUpdating(id);
-      await updateReturnRequestStatus(token, id, { status: newStatus });
+      await updateReturnRequestStatus(token, id, { status: mappedStatus });
+      // update local state to reflect server value (uppercase)
       setRequests((prev) =>
-        prev.map((req) => (req.id === id ? { ...req, status: newStatus } : req))
+        prev.map((req) =>
+          req.id === id ? { ...req, status: mappedStatus } : req
+        )
       );
     } catch (err) {
       console.error("Failed to update status:", err);
@@ -106,9 +112,9 @@ const ReturnRequests = () => {
                           : "text-yellow-600"
                       }`}
                     >
-                      {req.status === "approved"
+                      {req.status === "APPROVED"
                         ? "อนุมัติแล้ว"
-                        : req.status === "rejected"
+                        : req.status === "REJECTED"
                         ? "ถูกปฏิเสธ"
                         : "รอดำเนินการ"}
                     </span>
@@ -117,8 +123,8 @@ const ReturnRequests = () => {
 
                 <div className="flex gap-2">
                   <button
-                    disabled={updating === req.id || req.status === "approved"}
-                    onClick={() => handleUpdateStatus(req.id, "approved")}
+                    disabled={updating === req.id || req.status === "APPROVED"}
+                    onClick={() => handleUpdateStatus(req.id, "APPROVED")}
                     className="px-3 py-1 rounded-md text-white bg-green-600 hover:bg-green-700 disabled:opacity-60"
                   >
                     {updating === req.id ? (
@@ -128,8 +134,8 @@ const ReturnRequests = () => {
                     )}
                   </button>
                   <button
-                    disabled={updating === req.id || req.status === "rejected"}
-                    onClick={() => handleUpdateStatus(req.id, "rejected")}
+                    disabled={updating === req.id || req.status === "REJECTED"}
+                    onClick={() => handleUpdateStatus(req.id, "REJECTED")}
                     className="px-3 py-1 rounded-md text-white bg-red-600 hover:bg-red-700 disabled:opacity-60"
                   >
                     {updating === req.id ? (
