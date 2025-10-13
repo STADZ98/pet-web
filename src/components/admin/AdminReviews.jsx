@@ -21,6 +21,9 @@ import {
 const API =
   import.meta.env.VITE_API || "https://server-api-newgenz.vercel.app/api";
 
+// -------------------- Small UI Helpers --------------------
+const formatNumber = (n) => (typeof n === "number" ? n.toLocaleString() : "0");
+
 // =================================================================
 // --- Component: RatingStars (แยกออกมาเพื่อให้โค้ดดูสะอาดขึ้น) ---
 // =================================================================
@@ -62,6 +65,7 @@ const AdminReviews = () => {
   const [loading, setLoading] = useState(false);
   // สถานะตัวกรอง: 'all', 'replied', 'unreplied'
   const [filterStatus, setFilterStatus] = useState("all");
+  const [ratingFilter, setRatingFilter] = useState(null);
   // สถานะการจัดเรียง: 'date_desc' (ล่าสุด), 'date_asc' (เก่าสุด), 'rating_desc' (ดาวมาก), 'rating_asc' (ดาวน้อย)
   const [sortBy, setSortBy] = useState("date_desc");
   // search, pagination and bulk select
@@ -71,6 +75,13 @@ const AdminReviews = () => {
   const [selectedIds, setSelectedIds] = useState([]);
   const [actionLoading, setActionLoading] = useState(null);
   const [editingReply, setEditingReply] = useState({});
+  // UI helpers: confirm modal and toast
+  const [confirm, setConfirm] = useState({
+    open: false,
+    title: "",
+    onConfirm: null,
+  });
+  const [toast, setToast] = useState(null);
 
   // debounced search value
   const debouncedSearch = useDebounce(searchText, 250);
@@ -98,10 +109,22 @@ const AdminReviews = () => {
     fetchReviews();
   }, [fetchReviews]);
 
+  // toast auto-dismiss
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 3500);
+    return () => clearTimeout(t);
+  }, [toast]);
+
   // -------------------- Filtering and Sorting Logic --------------------
   const filteredAndSortedReviews = useMemo(() => {
     let currentReviews = allReviews;
-
+    // rating filter (1-5)
+    if (ratingFilter) {
+      currentReviews = currentReviews.filter(
+        (r) => Number(r.rating) === Number(ratingFilter)
+      );
+    }
     // 1. Filtering
     if (filterStatus === "replied") {
       currentReviews = currentReviews.filter((r) => r.reply);
@@ -142,7 +165,7 @@ const AdminReviews = () => {
           return dateB - dateA;
       }
     });
-  }, [allReviews, filterStatus, sortBy, debouncedSearch]);
+  }, [allReviews, filterStatus, sortBy, debouncedSearch, ratingFilter]);
 
   // Pagination
   const totalReviews = filteredAndSortedReviews.length;
@@ -172,6 +195,72 @@ const AdminReviews = () => {
     } finally {
       setActionLoading(null);
     }
+  };
+
+  // Bulk delete
+  const handleBulkDelete = async () => {
+    if (!token) return alert("ต้องล็อกอิน");
+    if (selectedIds.length === 0)
+      return setToast({ type: "info", text: "ไม่มีรีวิวที่เลือก" });
+
+    setConfirm({
+      open: true,
+      title: `ลบ ${selectedIds.length} รีวิว ที่เลือกหรือไม่?`,
+      onConfirm: async () => {
+        setConfirm((s) => ({ ...s, open: false }));
+        setActionLoading({ id: selectedIds.join(","), action: "bulk_delete" });
+        try {
+          await axios.delete(`${API}/admin/reviews`, {
+            headers: { Authorization: `Bearer ${token}` },
+            data: { ids: selectedIds },
+          });
+          setSelectedIds([]);
+          fetchReviews();
+          setToast({ type: "success", text: "ลบเรียบร้อย" });
+        } catch (e) {
+          console.error(e);
+          setToast({ type: "error", text: "ลบไม่สำเร็จ" });
+        } finally {
+          setActionLoading(null);
+        }
+      },
+    });
+  };
+
+  // Export selected to CSV
+  const handleExportCSV = () => {
+    const rows = (
+      selectedIds.length
+        ? allReviews.filter((r) => selectedIds.includes(r.id))
+        : filteredAndSortedReviews
+    ).map((r) => ({
+      id: r.id,
+      user: r.user?.email || "",
+      product: r.product?.title || r.product?.name || "",
+      rating: r.rating || "",
+      comment: (r.comment || "").replace(/\n/g, " "),
+      reply: r.reply || "",
+    }));
+
+    if (rows.length === 0)
+      return setToast({ type: "info", text: "ไม่มีข้อมูลสำหรับส่งออก" });
+
+    const csv = [
+      Object.keys(rows[0]).join(","),
+      ...rows.map((r) =>
+        Object.values(r)
+          .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+          .join(",")
+      ),
+    ].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `reviews_export_${Date.now()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setToast({ type: "success", text: "ดาวน์โหลดเริ่มต้นแล้ว" });
   };
 
   // -------------------- Reply Logic (เหมือนเดิม) --------------------
@@ -433,6 +522,22 @@ const AdminReviews = () => {
     );
   });
 
+  // -------------------- Derived Stats --------------------
+  const avgRating = useMemo(() => {
+    if (!allReviews.length) return 0;
+    const sum = allReviews.reduce((s, r) => s + (r.rating || 0), 0);
+    return Math.round((sum / allReviews.length) * 10) / 10;
+  }, [allReviews]);
+
+  const ratingCounts = useMemo(() => {
+    const c = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+    allReviews.forEach((r) => {
+      const rr = r.rating || 0;
+      if (rr >= 1 && rr <= 5) c[rr] = (c[rr] || 0) + 1;
+    });
+    return c;
+  }, [allReviews]);
+
   return (
     <div className="p-6 bg-white rounded-xl shadow-2xl border border-gray-100 max-w-4xl mx-auto my-8">
       {/* Header Section */}
@@ -448,82 +553,150 @@ const AdminReviews = () => {
         </div>
       </div>
 
-      {/* Control Panel: Filter and Sort */}
-      <div className="flex flex-col lg:flex-row justify-between items-center mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg shadow-inner gap-4">
-        <div className="flex items-center gap-3 w-full lg:w-1/2">
-          <input
-            type="search"
-            value={searchText}
-            onChange={(e) => {
-              setSearchText(e.target.value);
-              setCurrentPage(1);
-            }}
-            placeholder="ค้นหารีวิว, อีเมล, ชื่อสินค้า หรือข้อความ..."
-            className="w-full md:w-80 p-2 border border-gray-300 rounded-md text-sm"
-          />
-          <select
-            value={pageSize}
-            onChange={(e) => {
-              setPageSize(Number(e.target.value));
-              setCurrentPage(1);
-            }}
-            className="p-2 border border-gray-300 rounded-md text-sm"
-          >
-            <option value={5}>5 / หน้า</option>
-            <option value={10}>10 / หน้า</option>
-            <option value={25}>25 / หน้า</option>
-          </select>
+      {/* Control Panel: Stats, Filter and Sort */}
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg shadow-inner gap-4">
+        <div className="flex-1 w-full mb-3 lg:mb-0">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-white rounded-lg shadow-sm border flex flex-col">
+              <span className="text-xs text-gray-500">คะแนนเฉลี่ย</span>
+              <div className="text-2xl font-extrabold text-gray-900">
+                {avgRating} <span className="text-sm text-gray-500">/5</span>
+              </div>
+              <div className="text-xs text-gray-500">
+                จาก {formatNumber(allReviews.length)} รีวิว
+              </div>
+            </div>
+
+            <div className="p-3 bg-white rounded-lg shadow-sm border flex items-center gap-3">
+              {Object.entries(ratingCounts).map(([k, v]) => (
+                <div key={k} className="text-xs text-gray-600 px-2">
+                  <div className="font-semibold">{k}★</div>
+                  <div className="text-gray-400">{v}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Rating chips filter */}
+          <div className="mt-3 flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => {
+                setFilterStatus("all");
+                setRatingFilter(null);
+              }}
+              className={`px-3 py-1 rounded-full text-sm ${
+                !ratingFilter && filterStatus === "all"
+                  ? "bg-blue-600 text-white"
+                  : "bg-white text-gray-700 border"
+              }`}
+            >
+              ทั้งหมด
+            </button>
+            {[5, 4, 3, 2, 1].map((n) => (
+              <button
+                key={n}
+                onClick={() => {
+                  setRatingFilter(n);
+                  setFilterStatus("all");
+                  setSearchText("");
+                  setCurrentPage(1);
+                }}
+                className={`px-3 py-1 rounded-full text-sm ${
+                  ratingFilter === n
+                    ? "bg-blue-50 border-blue-200 text-blue-700"
+                    : "bg-white"
+                } border`}
+              >
+                {n}★ ({ratingCounts[n] || 0})
+              </button>
+            ))}
+            {ratingFilter && (
+              <button
+                onClick={() => setRatingFilter(null)}
+                className="px-3 py-1 rounded-full text-sm bg-gray-100 border"
+              >
+                ล้างตัวกรอง
+              </button>
+            )}
+          </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-3">
+        <div className="w-full lg:w-auto flex items-center gap-3">
+          <div className="flex items-center gap-3 w-full lg:w-80">
             <input
-              type="checkbox"
-              checked={
-                selectedIds.length > 0 &&
-                selectedIds.length === allReviews.length
-              }
+              type="search"
+              value={searchText}
               onChange={(e) => {
-                if (e.target.checked)
-                  setSelectedIds(allReviews.map((r) => r.id));
-                else setSelectedIds([]);
+                setSearchText(e.target.value);
+                setCurrentPage(1);
               }}
-              aria-label="Select all reviews"
+              placeholder="ค้นหารีวิว, อีเมล, ชื่อสินค้า หรือข้อความ..."
+              className="w-full p-2 border border-gray-300 rounded-md text-sm"
             />
-            <div className="text-sm text-gray-700">เลือกทั้งหมด</div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Filter className="w-5 h-5 text-gray-500" />
             <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="p-2 border border-gray-300 rounded-md text-sm font-medium focus:ring-blue-500 focus:border-blue-500 bg-white"
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="p-2 border border-gray-300 rounded-md text-sm"
             >
-              <option value="all">ทั้งหมด ({allReviews.length})</option>
-              <option value="unreplied">
-                ยังไม่ได้ตอบ ({allReviews.filter((r) => !r.reply).length})
-              </option>
-              <option value="replied">
-                ตอบแล้ว ({allReviews.filter((r) => r.reply).length})
-              </option>
+              <option value={5}>5 / หน้า</option>
+              <option value={10}>10 / หน้า</option>
+              <option value={25}>25 / หน้า</option>
             </select>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-gray-700 mr-2">
-              จัดเรียง:
-            </span>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="p-2 border border-gray-300 rounded-md text-sm font-medium focus:ring-blue-500 focus:border-blue-500 bg-white"
-            >
-              <option value="date_desc">วันที่ล่าสุด</option>
-              <option value="date_asc">วันที่เก่าสุด</option>
-              <option value="rating_desc">คะแนนสูงสุด (5 ดาว)</option>
-              <option value="rating_asc">คะแนนต่ำสุด (1 ดาว)</option>
-            </select>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={
+                  selectedIds.length > 0 &&
+                  selectedIds.length === allReviews.length
+                }
+                onChange={(e) => {
+                  if (e.target.checked)
+                    setSelectedIds(allReviews.map((r) => r.id));
+                  else setSelectedIds([]);
+                }}
+                aria-label="Select all reviews"
+              />
+              <div className="text-sm text-gray-700">เลือกทั้งหมด</div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Filter className="w-5 h-5 text-gray-500" />
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="p-2 border border-gray-300 rounded-md text-sm font-medium focus:ring-blue-500 focus:border-blue-500 bg-white"
+              >
+                <option value="all">ทั้งหมด ({allReviews.length})</option>
+                <option value="unreplied">
+                  ยังไม่ได้ตอบ ({allReviews.filter((r) => !r.reply).length})
+                </option>
+                <option value="replied">
+                  ตอบแล้ว ({allReviews.filter((r) => r.reply).length})
+                </option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-gray-700 mr-2">
+                จัดเรียง:
+              </span>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="p-2 border border-gray-300 rounded-md text-sm font-medium focus:ring-blue-500 focus:border-blue-500 bg-white"
+              >
+                <option value="date_desc">วันที่ล่าสุด</option>
+                <option value="date_asc">วันที่เก่าสุด</option>
+                <option value="rating_desc">คะแนนสูงสุด (5 ดาว)</option>
+                <option value="rating_asc">คะแนนต่ำสุด (1 ดาว)</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>
@@ -544,16 +717,44 @@ const AdminReviews = () => {
       {/* Loading & Empty State */}
       {loading ? (
         <div className="py-20 text-center text-blue-500 flex flex-col items-center justify-center">
-          <Loader2 className="w-10 h-10 animate-spin" />
+          <Loader2 className="w-14 h-14 animate-spin text-blue-400" />
           <p className="mt-4 text-lg font-medium">กำลังดึงข้อมูลรีวิว...</p>
+          <p className="mt-2 text-sm text-gray-500">
+            ลองรีเฟรชหน้าหากใช้เวลานาน
+          </p>
         </div>
       ) : allReviews.length === 0 ? (
-        <div className="py-20 text-center text-gray-500 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50">
-          <MessageSquareMore className="w-10 h-10 mx-auto mb-3 text-gray-400" />
+        <div className="py-20 text-center text-gray-500 border-2 border-dashed border-gray-200 rounded-xl bg-gradient-to-br from-white to-gray-50">
+          <MessageSquareMore className="w-12 h-12 mx-auto mb-3 text-gray-400" />
           <p className="text-lg font-semibold">ยังไม่มีรีวิวเข้ามาในระบบ</p>
+          <p className="text-sm mt-1">โปรดตรวจสอบว่า API และข้อมูลถูกต้อง</p>
         </div>
       ) : (
         <div className="space-y-8">
+          {/* Bulk toolbar */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="text-sm text-gray-600">
+                เลือก: {selectedIds.length} รายการ
+              </div>
+              <button
+                onClick={handleBulkDelete}
+                className="px-3 py-1 bg-red-600 text-white rounded-md text-sm"
+                disabled={selectedIds.length === 0}
+              >
+                ลบที่เลือก
+              </button>
+              <button
+                onClick={handleExportCSV}
+                className="px-3 py-1 bg-gray-100 text-gray-700 rounded-md text-sm"
+              >
+                ส่งออก CSV
+              </button>
+            </div>
+            <div className="text-sm text-gray-500">
+              หน้า {currentPage} / {totalPages}
+            </div>
+          </div>
           {/* Reviews List */}
           {reviewsItems}
 
@@ -603,6 +804,50 @@ const AdminReviews = () => {
               </p>
             </div>
           )}
+        </div>
+      )}
+      {/* Confirm modal */}
+      {confirm?.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+            <div className="text-lg font-bold mb-2">
+              {confirm.title || "ยืนยัน"}
+            </div>
+            <div className="text-sm text-gray-600 mb-4">
+              การกระทำนี้ไม่สามารถย้อนกลับได้
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setConfirm((s) => ({ ...s, open: false }))}
+                className="px-4 py-2 bg-gray-100 rounded"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={() => {
+                  confirm.onConfirm && confirm.onConfirm();
+                }}
+                className="px-4 py-2 bg-red-600 text-white rounded"
+              >
+                ดำเนินการ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div
+          className={`fixed right-6 bottom-6 z-50 px-4 py-2 rounded shadow-lg text-sm ${
+            toast.type === "error"
+              ? "bg-red-600 text-white"
+              : toast.type === "success"
+              ? "bg-green-600 text-white"
+              : "bg-gray-800 text-white"
+          }`}
+        >
+          {toast.text}
         </div>
       )}
     </div>
