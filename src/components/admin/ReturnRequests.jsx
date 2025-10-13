@@ -9,7 +9,13 @@ import useEcomStore from "../../store/ecom-store";
 import RequestCard from "./RequestCard";
 import RequestDetailModal from "./RequestDetailModal";
 import Toasts from "../ui/Toast";
-import { v4 as uuidv4 } from "uuid";
+
+// small id generator using crypto.randomUUID with fallback
+const makeId = () => {
+  if (typeof crypto !== "undefined" && crypto.randomUUID)
+    return crypto.randomUUID();
+  return "id-" + Math.random().toString(36).slice(2, 9);
+};
 
 // (image helper removed - component files use direct image fields or a shared util can be added later)
 
@@ -96,7 +102,7 @@ const ReturnRequests = () => {
   // Toasts
   const [toasts, setToasts] = useState([]);
   const addToast = (t) => {
-    const id = uuidv4();
+    const id = makeId();
     setToasts((s) => [...s, { id, ...t }]);
     setTimeout(() => setToasts((s) => s.filter((x) => x.id !== id)), 5000);
   };
