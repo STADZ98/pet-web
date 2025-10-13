@@ -54,7 +54,12 @@ const AdminReviews = () => {
   // สถานะตัวกรอง: 'all', 'replied', 'unreplied'
   const [filterStatus, setFilterStatus] = useState("all");
   // สถานะการจัดเรียง: 'date_desc' (ล่าสุด), 'date_asc' (เก่าสุด), 'rating_desc' (ดาวมาก), 'rating_asc' (ดาวน้อย)
-  const [sortBy, setSortBy] = useState("date_desc"); 
+  const [sortBy, setSortBy] = useState("date_desc");
+  // search, pagination and bulk select
+  const [searchText, setSearchText] = useState("");
+  const [pageSize, setPageSize] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedIds, setSelectedIds] = useState([]);
   const [actionLoading, setActionLoading] = useState(null);
   const [editingReply, setEditingReply] = useState({});
 
@@ -92,6 +97,21 @@ const AdminReviews = () => {
       currentReviews = currentReviews.filter((r) => !r.reply);
     }
 
+    // 1.5 Search (client-side)
+    const q = (searchText || "").trim().toLowerCase();
+    if (q) {
+      currentReviews = currentReviews.filter((r) => {
+        return (
+          String(r.id).toLowerCase().includes(q) ||
+          (r.user?.email || "").toLowerCase().includes(q) ||
+          (r.product?.title || r.product?.name || "")
+            .toLowerCase()
+            .includes(q) ||
+          (r.comment || "").toLowerCase().includes(q)
+        );
+      });
+    }
+
     // 2. Sorting
     return currentReviews.sort((a, b) => {
       const dateA = new Date(a.createdAt || a.date);
@@ -110,8 +130,15 @@ const AdminReviews = () => {
           return dateB - dateA;
       }
     });
-  }, [allReviews, filterStatus, sortBy]);
+  }, [allReviews, filterStatus, sortBy, searchText]);
 
+  // Pagination
+  const totalReviews = filteredAndSortedReviews.length;
+  const totalPages = Math.max(1, Math.ceil(totalReviews / pageSize));
+  const pagedReviews = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredAndSortedReviews.slice(start, start + pageSize);
+  }, [filteredAndSortedReviews, currentPage, pageSize]);
 
   // -------------------- Review Actions (เหมือนเดิม) --------------------
 
@@ -203,21 +230,36 @@ const AdminReviews = () => {
   const reviewCount = filteredAndSortedReviews.length;
 
   // Pre-render list items to avoid complex nested JSX in the return block
-  const reviewsItems = filteredAndSortedReviews.map((r) => {
+  const reviewsItems = pagedReviews.map((r) => {
     const isDeleting =
       actionLoading?.id === r.id && actionLoading?.action === "delete";
     const isReplying =
       actionLoading?.id === r.id &&
-      (actionLoading?.action === "reply" || actionLoading?.action === "delete_reply");
+      (actionLoading?.action === "reply" ||
+        actionLoading?.action === "delete_reply");
     const isEditing = editingReply[r.id] !== undefined;
 
     return (
       <div
         key={r.id}
         className={`p-6 border rounded-xl shadow-lg hover:shadow-xl transition duration-300 relative ${
-          !r.reply ? 'bg-yellow-50 border-yellow-200' : 'bg-white border-gray-200'
+          !r.reply
+            ? "bg-yellow-50 border-yellow-200"
+            : "bg-white border-gray-200"
         }`}
       >
+        <div className="absolute left-3 top-3">
+          <input
+            type="checkbox"
+            checked={selectedIds.includes(r.id)}
+            onChange={(e) => {
+              setSelectedIds((s) => {
+                if (e.target.checked) return Array.from(new Set([...s, r.id]));
+                return s.filter((id) => id !== r.id);
+              });
+            }}
+          />
+        </div>
         <div className="flex items-start gap-5">
           {/* Avatar */}
           <div className="flex-shrink-0 mt-1">
@@ -241,7 +283,7 @@ const AdminReviews = () => {
                   {r.user?.email || "ผู้ใช้งานนิรนาม"}
                 </span>
                 <span className="text-sm text-gray-500 font-medium mt-0.5">
-                  รีวิวสินค้า: {" "}
+                  รีวิวสินค้า:{" "}
                   <span className="text-blue-600 font-bold">
                     {r.product?.title || r.product?.name || "ไม่ระบุสินค้า"}
                   </span>
@@ -250,7 +292,9 @@ const AdminReviews = () => {
               <div className="flex items-center gap-3 mt-2 md:mt-0">
                 <RatingStars rating={r.rating} />
                 <div className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-                  {new Date(r.createdAt || r.date || Date.now()).toLocaleDateString("th-TH", {
+                  {new Date(
+                    r.createdAt || r.date || Date.now()
+                  ).toLocaleDateString("th-TH", {
                     day: "2-digit",
                     month: "short",
                     year: "numeric",
@@ -271,9 +315,14 @@ const AdminReviews = () => {
                   <Edit3 className="w-4 h-4" />
                   การตอบกลับจากผู้ดูแลระบบ:
                 </div>
-                <div className="text-sm text-gray-700 whitespace-pre-line">{r.reply}</div>
+                <div className="text-sm text-gray-700 whitespace-pre-line">
+                  {r.reply}
+                </div>
                 <div className="text-xs text-blue-500 mt-2 border-t border-blue-100 pt-1">
-                  ตอบโดย: {r.replyBy?.email || "Admin"} เมื่อ {r.repliedAt ? new Date(r.repliedAt).toLocaleString("th-TH") : ""}
+                  ตอบโดย: {r.replyBy?.email || "Admin"} เมื่อ{" "}
+                  {r.repliedAt
+                    ? new Date(r.repliedAt).toLocaleString("th-TH")
+                    : ""}
                 </div>
               </div>
             )}
@@ -302,10 +351,21 @@ const AdminReviews = () => {
                     </button>
                     <button
                       onClick={() => saveReply(r.id)}
-                      className={`px-4 py-2 ${r.reply ? "bg-orange-600 hover:bg-orange-700" : "bg-blue-600 hover:bg-blue-700"} text-white rounded-lg text-sm font-semibold transition flex items-center justify-center shadow-md`}
-                      disabled={isReplying || (editingReply[r.id] || "").trim() === (r.reply || "")}
+                      className={`px-4 py-2 ${
+                        r.reply
+                          ? "bg-orange-600 hover:bg-orange-700"
+                          : "bg-blue-600 hover:bg-blue-700"
+                      } text-white rounded-lg text-sm font-semibold transition flex items-center justify-center shadow-md`}
+                      disabled={
+                        isReplying ||
+                        (editingReply[r.id] || "").trim() === (r.reply || "")
+                      }
                     >
-                      {isReplying ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Check className="w-4 h-4 mr-1" />}
+                      {isReplying ? (
+                        <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                      ) : (
+                        <Check className="w-4 h-4 mr-1" />
+                      )}
                       {r.reply ? "อัปเดตตอบกลับ" : "บันทึกตอบกลับ"}
                     </button>
                   </div>
@@ -314,10 +374,15 @@ const AdminReviews = () => {
                 <div className="flex items-center justify-end gap-2 border-t pt-3 mt-3 border-gray-100">
                   <button
                     onClick={() => startEditReply(r.id, r.reply || "")}
-                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center ${r.reply ? "bg-orange-50 text-orange-600 hover:bg-orange-100 border border-orange-200" : "bg-blue-600 text-white hover:bg-blue-700 shadow-md"}`}
+                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center ${
+                      r.reply
+                        ? "bg-orange-50 text-orange-600 hover:bg-orange-100 border border-orange-200"
+                        : "bg-blue-600 text-white hover:bg-blue-700 shadow-md"
+                    }`}
                     disabled={isDeleting || isReplying}
                   >
-                    <Edit3 className="w-4 h-4 mr-1" />{r.reply ? "แก้ไขการตอบกลับ" : "ตอบกลับรีวิว"}
+                    <Edit3 className="w-4 h-4 mr-1" />
+                    {r.reply ? "แก้ไขการตอบกลับ" : "ตอบกลับรีวิว"}
                   </button>
 
                   {r.reply && (
@@ -340,7 +405,11 @@ const AdminReviews = () => {
                     className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm font-semibold hover:bg-gray-200 transition flex items-center"
                     disabled={isDeleting || isReplying}
                   >
-                    {isDeleting ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Trash2 className="w-4 h-4 mr-1" />}
+                    {isDeleting ? (
+                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4 mr-1" />
+                    )}
                     ลบรีวิว
                   </button>
                 </div>
@@ -368,49 +437,96 @@ const AdminReviews = () => {
       </div>
 
       {/* Control Panel: Filter and Sort */}
-      <div className="flex flex-col sm:flex-row justify-between items-center mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg shadow-inner">
-        {/* Filter by Reply Status */}
-        <div className="flex items-center gap-2 mb-3 sm:mb-0">
-          <Filter className="w-5 h-5 text-gray-500" />
-          <span className="text-sm font-semibold text-gray-700 mr-2">
-            ตัวกรอง:
-          </span>
+      <div className="flex flex-col lg:flex-row justify-between items-center mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg shadow-inner gap-4">
+        <div className="flex items-center gap-3 w-full lg:w-1/2">
+          <input
+            type="search"
+            value={searchText}
+            onChange={(e) => {
+              setSearchText(e.target.value);
+              setCurrentPage(1);
+            }}
+            placeholder="ค้นหารีวิว, อีเมล, ชื่อสินค้า หรือข้อความ..."
+            className="w-full md:w-80 p-2 border border-gray-300 rounded-md text-sm"
+          />
           <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="p-2 border border-gray-300 rounded-md text-sm font-medium focus:ring-blue-500 focus:border-blue-500 bg-white"
+            value={pageSize}
+            onChange={(e) => {
+              setPageSize(Number(e.target.value));
+              setCurrentPage(1);
+            }}
+            className="p-2 border border-gray-300 rounded-md text-sm"
           >
-            <option value="all">ทั้งหมด ({allReviews.length})</option>
-            <option value="unreplied">
-              ยังไม่ได้ตอบ ({allReviews.filter((r) => !r.reply).length})
-            </option>
-            <option value="replied">
-              ตอบกลับแล้ว ({allReviews.filter((r) => r.reply).length})
-            </option>
+            <option value={5}>5 / หน้า</option>
+            <option value={10}>10 / หน้า</option>
+            <option value={25}>25 / หน้า</option>
           </select>
         </div>
 
-        {/* Sort By */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-gray-700 mr-2">
-            จัดเรียง:
-          </span>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="p-2 border border-gray-300 rounded-md text-sm font-medium focus:ring-blue-500 focus:border-blue-500 bg-white"
-          >
-            <option value="date_desc">วันที่ล่าสุด</option>
-            <option value="date_asc">วันที่เก่าสุด</option>
-            <option value="rating_desc">คะแนนสูงสุด (5 ดาว)</option>
-            <option value="rating_asc">คะแนนต่ำสุด (1 ดาว)</option>
-          </select>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              checked={
+                selectedIds.length > 0 &&
+                selectedIds.length === allReviews.length
+              }
+              onChange={(e) => {
+                if (e.target.checked)
+                  setSelectedIds(allReviews.map((r) => r.id));
+                else setSelectedIds([]);
+              }}
+              aria-label="Select all reviews"
+            />
+            <div className="text-sm text-gray-700">เลือกทั้งหมด</div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Filter className="w-5 h-5 text-gray-500" />
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="p-2 border border-gray-300 rounded-md text-sm font-medium focus:ring-blue-500 focus:border-blue-500 bg-white"
+            >
+              <option value="all">ทั้งหมด ({allReviews.length})</option>
+              <option value="unreplied">
+                ยังไม่ได้ตอบ ({allReviews.filter((r) => !r.reply).length})
+              </option>
+              <option value="replied">
+                ตอบแล้ว ({allReviews.filter((r) => r.reply).length})
+              </option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-gray-700 mr-2">
+              จัดเรียง:
+            </span>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="p-2 border border-gray-300 rounded-md text-sm font-medium focus:ring-blue-500 focus:border-blue-500 bg-white"
+            >
+              <option value="date_desc">วันที่ล่าสุด</option>
+              <option value="date_asc">วันที่เก่าสุด</option>
+              <option value="rating_desc">คะแนนสูงสุด (5 ดาว)</option>
+              <option value="rating_asc">คะแนนต่ำสุด (1 ดาว)</option>
+            </select>
+          </div>
         </div>
       </div>
-      
+
       {/* Display Filtered Count */}
-      <div className={`mb-4 text-sm font-medium p-2 rounded-lg ${reviewCount === allReviews.length ? 'text-gray-600' : 'text-blue-600 bg-blue-50 border border-blue-200'}`}>
-         แสดง {reviewCount} รีวิว {reviewCount < allReviews.length && `จากทั้งหมด ${allReviews.length} รีวิว`}
+      <div
+        className={`mb-4 text-sm font-medium p-2 rounded-lg ${
+          reviewCount === allReviews.length
+            ? "text-gray-600"
+            : "text-blue-600 bg-blue-50 border border-blue-200"
+        }`}
+      >
+        แสดง {reviewCount} รีวิว{" "}
+        {reviewCount < allReviews.length &&
+          `จากทั้งหมด ${allReviews.length} รีวิว`}
       </div>
 
       {/* Loading & Empty State */}
@@ -428,19 +544,56 @@ const AdminReviews = () => {
         <div className="space-y-8">
           {/* Reviews List */}
           {reviewsItems}
-          
+
+          {/* Pagination footer */}
+          <div className="flex items-center justify-between border-t pt-4">
+            <div className="text-sm text-gray-600">
+              แสดงหน้า {currentPage} / {totalPages} — ทั้งหมด {totalReviews}{" "}
+              รีวิว
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage <= 1}
+                className="px-3 py-1 bg-white border rounded-md text-sm"
+              >
+                ก่อนหน้า
+              </button>
+              <input
+                type="number"
+                value={currentPage}
+                onChange={(e) => {
+                  const v = Number(e.target.value) || 1;
+                  setCurrentPage(Math.min(Math.max(1, v), totalPages));
+                }}
+                className="w-16 p-1 text-center border rounded-md"
+              />
+              <button
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(totalPages, p + 1))
+                }
+                disabled={currentPage >= totalPages}
+                className="px-3 py-1 bg-white border rounded-md text-sm"
+              >
+                ถัดไป
+              </button>
+            </div>
+          </div>
+
           {reviewCount === 0 && allReviews.length > 0 && (
-             <div className="py-12 text-center text-gray-500 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50">
-                <Filter className="w-10 h-10 mx-auto mb-3 text-gray-400" />
-                <p className="text-lg font-semibold">ไม่พบรีวิวที่ตรงกับตัวกรอง</p>
-                <p className="text-sm mt-1">ลองเปลี่ยนการตั้งค่าตัวกรองหรือการจัดเรียง</p>
+            <div className="py-12 text-center text-gray-500 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50">
+              <Filter className="w-10 h-10 mx-auto mb-3 text-gray-400" />
+              <p className="text-lg font-semibold">
+                ไม่พบรีวิวที่ตรงกับตัวกรอง
+              </p>
+              <p className="text-sm mt-1">
+                ลองเปลี่ยนการตั้งค่าตัวกรองหรือการจัดเรียง
+              </p>
             </div>
           )}
         </div>
       )}
-
     </div>
-
   );
 };
 
