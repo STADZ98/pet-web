@@ -44,19 +44,35 @@ const RequestDetailModal = ({
     }
   }, [open, onClose]);
 
-  // Status Color Helper
-  const getStatusStyle = (status) => {
-    const base = "font-bold px-3 py-1 rounded-full text-sm";
-    switch (status) {
-      case "PENDING":
-        return `${base} bg-blue-100 text-blue-700`;
-      case "APPROVED":
-        return `${base} bg-green-100 text-green-700`;
-      case "REJECTED":
-        return `${base} bg-red-100 text-red-700`;
-      default:
-        return `${base} bg-gray-100 text-gray-700`;
-    }
+  // Status Color Helper + label mapping
+  const STATUS_MAP = {
+    PENDING: {
+      class:
+        "font-bold px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-700",
+      label: "รอดำเนินการ",
+    },
+    APPROVED: {
+      class:
+        "font-bold px-3 py-1 rounded-full text-sm bg-green-100 text-green-700",
+      label: "อนุมัติแล้ว",
+    },
+    REJECTED: {
+      class: "font-bold px-3 py-1 rounded-full text-sm bg-red-100 text-red-700",
+      label: "ถูกปฏิเสธ",
+    },
+    DEFAULT: {
+      class:
+        "font-bold px-3 py-1 rounded-full text-sm bg-gray-100 text-gray-700",
+      label: "ไม่ทราบสถานะ",
+    },
+  };
+
+  const normalize = (raw) => {
+    const s = (raw || "").toString().toUpperCase();
+    if (s === "รอดำเนินการ" || s === "PENDING") return "PENDING";
+    if (s === "อนุมัติแล้ว" || s === "APPROVED") return "APPROVED";
+    if (s === "ถูกปฏิเสธ" || s === "REJECTED") return "REJECTED";
+    return s;
   };
 
   if (!open || !request) return null;
@@ -111,9 +127,11 @@ const RequestDetailModal = ({
               <h4 className="text-xs font-semibold uppercase text-gray-500">
                 สถานะปัจจุบัน
               </h4>
-              <div className={getStatusStyle(request.status)}>
-                {request.status}
-              </div>
+              {(() => {
+                const norm = normalize(request.status);
+                const info = STATUS_MAP[norm] || STATUS_MAP.DEFAULT;
+                return <div className={info.class}>{info.label}</div>;
+              })()}
             </div>
             <div className="space-y-1">
               <h4 className="text-xs font-semibold uppercase text-gray-500">
@@ -137,17 +155,18 @@ const RequestDetailModal = ({
           </div>
 
           {/* Rejection Note (If Rejected) */}
-          {request.status === "REJECTED" && request.rejectionNote && (
-            <div className="bg-red-50 p-4 rounded-lg border border-red-300">
-              <h4 className="text-sm font-semibold text-red-700 flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4" />
-                หมายเหตุการปฏิเสธ
-              </h4>
-              <p className="text-sm text-red-800 mt-2">
-                {request.rejectionNote}
-              </p>
-            </div>
-          )}
+          {normalize(request.status) === "REJECTED" &&
+            request.rejectionNote && (
+              <div className="bg-red-50 p-4 rounded-lg border border-red-300">
+                <h4 className="text-sm font-semibold text-red-700 flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4" />
+                  หมายเหตุการปฏิเสธ
+                </h4>
+                <p className="text-sm text-red-800 mt-2">
+                  {request.rejectionNote}
+                </p>
+              </div>
+            )}
 
           {/* Product Items */}
           <div>
@@ -209,7 +228,8 @@ const RequestDetailModal = ({
             <div className="flex flex-wrap gap-3">
               <button
                 disabled={
-                  updatingId === request.id || request.status === "APPROVED"
+                  updatingId === request.id ||
+                  normalize(request.status) === "APPROVED"
                 }
                 onClick={() => onAction(request.id, "APPROVED")}
                 className="flex items-center justify-center px-6 py-2 rounded-lg bg-green-600 text-white font-semibold hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-md"

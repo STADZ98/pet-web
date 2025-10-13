@@ -2,8 +2,20 @@ import React from "react";
 import { Loader2, User, Clock, Package } from "lucide-react"; // เพิ่มไอคอนเพื่อความชัดเจน
 
 // 1. StatusBadge: ปรับปรุงให้มีไอคอนและใช้สีที่เป็นมาตรฐาน UI
+// Accept either English codes (PENDING/APPROVED/REJECTED) or Thai labels and
+// normalize to English codes for logic, but render Thai labels in the UI.
 const StatusBadge = ({ status }) => {
-  const s = (status || "").toUpperCase();
+  const raw = status || "";
+  const s = (raw || "").toString().toUpperCase();
+  // normalize Thai labels to English codes
+  const normalized =
+    s === "รอดำเนินการ" || s === "PENDING"
+      ? "PENDING"
+      : s === "อนุมัติแล้ว" || s === "APPROVED"
+      ? "APPROVED"
+      : s === "ถูกปฏิเสธ" || s === "REJECTED"
+      ? "REJECTED"
+      : s;
   const map = {
     PENDING: {
       label: "รอดำเนินการ",
@@ -21,7 +33,7 @@ const StatusBadge = ({ status }) => {
       icon: "❌",
     },
   };
-  const info = map[s] || map.PENDING;
+  const info = map[normalized] || map.PENDING;
 
   return (
     <span
@@ -37,7 +49,17 @@ const RequestCard = ({ req, onOpenDetail, onAction, updatingId }) => {
   const isUpdating = updatingId === req.id;
   const productCount = req.products?.length || 0;
   const firstProduct = req.products?.[0]?.product;
-  const isApproved = req.status === "APPROVED";
+  // Normalize status for logic checks (treat Thai labels as equivalent)
+  const s = (req.status || "").toString().toUpperCase();
+  const normalizedStatus =
+    s === "รอดำเนินการ" || s === "PENDING"
+      ? "PENDING"
+      : s === "อนุมัติแล้ว" || s === "APPROVED"
+      ? "APPROVED"
+      : s === "ถูกปฏิเสธ" || s === "REJECTED"
+      ? "REJECTED"
+      : s;
+  const isApproved = normalizedStatus === "APPROVED";
 
   // ปรับการแสดงผลเหตุผลให้มีบรรทัดเดียว
   const truncatedReason = req.reason
@@ -101,9 +123,10 @@ const RequestCard = ({ req, onOpenDetail, onAction, updatingId }) => {
         </button>
 
         {/* อนุมัติ (Secondary Action, Visible for PENDING only) */}
-        {req.status === "PENDING" && (
+        {normalizedStatus === "PENDING" && (
           <button
             disabled={isUpdating}
+            // send English code to handler for consistency
             onClick={() => onAction(req.id, "APPROVED")}
             className="w-24 px-4 py-2 rounded-lg bg-green-600 text-white font-semibold hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shadow-md"
             aria-label={`อนุมัติคำร้อง ${req.id}`}
