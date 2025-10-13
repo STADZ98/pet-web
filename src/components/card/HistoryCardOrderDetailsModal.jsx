@@ -578,10 +578,12 @@ const OrderDetailsModal = ({
   void paymentMethodMap;
 
   // determine whether to show shipping section based on order status
+  // Shipping information should not be shown for cancelled orders.
   const showShippingSection = (() => {
     try {
       const s = String(order?.orderStatus || "").toUpperCase();
-      return ["PROCESSING", "DELIVERED", "CANCELLED"].includes(s);
+      // show shipping only when order is being processed or already delivered
+      return ["PROCESSING", "DELIVERED"].includes(s);
     } catch {
       return false;
     }
