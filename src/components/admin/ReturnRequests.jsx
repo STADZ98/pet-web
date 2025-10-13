@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import {
   getReturnRequestsAdmin,
   updateReturnRequestStatus,
@@ -6,34 +6,21 @@ import {
 } from "../../api/admin";
 import { Loader2 } from "lucide-react";
 import useEcomStore from "../../store/ecom-store";
+import RequestCard from "./RequestCard";
+import RequestDetailModal from "./RequestDetailModal";
+import Toasts from "../ui/Toast";
+import { v4 as uuidv4 } from "uuid";
 
-// ✅ ฟังก์ชันช่วยจัดการ URL ภาพทุกกรณี
-const getImageSrc = (image) => {
-  if (!image) return "/no-image.png";
-
-  // กรณี backend ส่ง base64 ที่มี prefix URL ผิด เช่น https://server-api.../api/data:image/...
-  if (image.startsWith("https://") && image.includes("data:image")) {
-    const base64Part = image.split("/api/")[1];
-    if (base64Part && base64Part.startsWith("data:image")) {
-      return base64Part;
-    }
-  }
-
-  // base64 ปกติ
-  if (image.startsWith("data:image")) return image;
-
-  // URL เต็ม
-  if (image.startsWith("http")) return image;
-
-  // path ธรรมดา เช่น /uploads/xxx.jpg
-  return `${API.replace("/api", "")}${image}`;
-};
+// (image helper removed - component files use direct image fields or a shared util can be added later)
 
 const ReturnRequests = () => {
   const token = useEcomStore((s) => s.token);
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(null);
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [selectedRequest, setSelectedRequest] = useState(null);
 
   const fetchRequests = useCallback(async () => {
     try {
@@ -73,6 +60,15 @@ const ReturnRequests = () => {
           req.id === id ? { ...req, status: mappedStatus } : req
         )
       );
+      // if the modal is open for this id, update it too
+      setSelectedRequest((s) =>
+        s && s.id === id ? { ...s, status: mappedStatus } : s
+      );
+      // success toast
+      addToast({
+        type: "success",
+        message: `อัปเดตสถานะคำร้อง ${id} เป็น ${mappedStatus}`,
+      });
     } catch (err) {
       // Log full Axios error details so we can see response body/status
       console.error(
@@ -85,11 +81,41 @@ const ReturnRequests = () => {
           err.response.status,
           err.response.data
         );
+        addToast({
+          type: "error",
+          message: `การอัปเดตสถานะล้มเหลว: ${
+            err.response?.data?.message || err.message
+          }`,
+        });
       }
     } finally {
       setUpdating(null);
     }
   };
+
+  // Toasts
+  const [toasts, setToasts] = useState([]);
+  const addToast = (t) => {
+    const id = uuidv4();
+    setToasts((s) => [...s, { id, ...t }]);
+    setTimeout(() => setToasts((s) => s.filter((x) => x.id !== id)), 5000);
+  };
+  const removeToast = (id) => setToasts((s) => s.filter((x) => x.id !== id));
+  const filtered = useMemo(() => {
+    return requests.filter((r) => {
+      const q = query.trim().toLowerCase();
+      if (
+        statusFilter !== "ALL" &&
+        (r.status || "").toUpperCase() !== statusFilter
+      )
+        return false;
+      if (!q) return true;
+      const inEmail = r.user?.email?.toLowerCase().includes(q);
+      const inReason = r.reason?.toLowerCase().includes(q);
+      const inId = String(r.id).includes(q);
+      return inEmail || inReason || inId;
+    });
+  }, [requests, query, statusFilter]);
 
   if (loading) {
     return (
@@ -101,113 +127,53 @@ const ReturnRequests = () => {
   }
 
   return (
-    <div className="p-6 space-y-4">
-      <h2 className="text-2xl font-semibold mb-4">คำร้องขอคืนสินค้า</h2>
-      {requests.length === 0 ? (
-        <p className="text-gray-500">ยังไม่มีคำร้องขอคืนสินค้า</p>
+    <div className="p-4 md:p-6 space-y-4">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3">
+        <h2 className="text-2xl font-semibold">คำร้องขอคืนสินค้า</h2>
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="ค้นหาโดย อีเมล, id, เหตุผล"
+            className="flex-1 md:flex-none border rounded-md px-3 py-2"
+          />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="border rounded-md px-3 py-2"
+          >
+            <option value="ALL">ทั้งหมด</option>
+            <option value="PENDING">รอดำเนินการ</option>
+            <option value="APPROVED">อนุมัติแล้ว</option>
+            <option value="REJECTED">ถูกปฏิเสธ</option>
+          </select>
+        </div>
+      </div>
+
+      {filtered.length === 0 ? (
+        <p className="text-gray-500">ไม่พบคำร้องตามเงื่อนไข</p>
       ) : (
-        requests.map((req) => (
-          <div key={req.id} className="shadow-sm border rounded-lg">
-            <div className="p-4">
-              <div className="flex justify-between items-center mb-3">
-                <div>
-                  <p className="font-semibold">
-                    ผู้ใช้: {req.user?.email || "ไม่ทราบ"}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    วันที่: {new Date(req.createdAt).toLocaleString("th-TH")}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    สถานะ:{" "}
-                    <span
-                      className={`font-medium ${
-                        req.status === "approved"
-                          ? "text-green-600"
-                          : req.status === "rejected"
-                          ? "text-red-600"
-                          : "text-yellow-600"
-                      }`}
-                    >
-                      {req.status === "APPROVED"
-                        ? "อนุมัติแล้ว"
-                        : req.status === "REJECTED"
-                        ? "ถูกปฏิเสธ"
-                        : "รอดำเนินการ"}
-                    </span>
-                  </p>
-                </div>
-
-                <div className="flex gap-2">
-                  <button
-                    disabled={updating === req.id || req.status === "APPROVED"}
-                    onClick={() => handleUpdateStatus(req.id, "APPROVED")}
-                    className="px-3 py-1 rounded-md text-white bg-green-600 hover:bg-green-700 disabled:opacity-60"
-                  >
-                    {updating === req.id ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      "อนุมัติ"
-                    )}
-                  </button>
-                  <button
-                    disabled={updating === req.id || req.status === "REJECTED"}
-                    onClick={() => handleUpdateStatus(req.id, "REJECTED")}
-                    className="px-3 py-1 rounded-md text-white bg-red-600 hover:bg-red-700 disabled:opacity-60"
-                  >
-                    {updating === req.id ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      "ปฏิเสธ"
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {/* แสดงสินค้า */}
-              <div className="border-t pt-3 space-y-2">
-                <p className="font-medium mb-2">สินค้าที่ขอคืน:</p>
-                {req.products?.length ? (
-                  req.products.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex items-center gap-3 border p-2 rounded-md"
-                    >
-                      <img
-                        src={getImageSrc(
-                          item?.product?.image ||
-                            item?.product?.images?.[0] ||
-                            item?.image
-                        )}
-                        alt={item?.product?.title || "สินค้า"}
-                        className="w-16 h-16 object-cover rounded-md border"
-                      />
-                      <div>
-                        <p className="font-semibold">
-                          {item?.product?.title || "ไม่ทราบชื่อสินค้า"}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          จำนวน: {item.count || 1}
-                        </p>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-gray-500">ไม่มีข้อมูลสินค้า</p>
-                )}
-              </div>
-
-              {/* เหตุผล */}
-              {req.reason && (
-                <div className="mt-3 text-sm text-gray-700">
-                  <p>
-                    <span className="font-medium">เหตุผล:</span> {req.reason}
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        ))
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2">
+          {filtered.map((req) => (
+            <RequestCard
+              key={req.id}
+              req={req}
+              onOpenDetail={(r) => setSelectedRequest(r)}
+              onAction={handleUpdateStatus}
+              updatingId={updating}
+            />
+          ))}
+        </div>
       )}
+
+      <RequestDetailModal
+        open={!!selectedRequest}
+        onClose={() => setSelectedRequest(null)}
+        request={selectedRequest}
+        onAction={(id, status, opts) => handleUpdateStatus(id, status, opts)}
+        updatingId={updating}
+      />
+      <Toasts toasts={toasts} onRemove={removeToast} />
     </div>
   );
 };
