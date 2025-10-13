@@ -46,6 +46,15 @@ const RatingStars = ({ rating }) => {
 // =================================================================
 // --- Component: AdminReviews (Main Component) ---
 // =================================================================
+const useDebounce = (value, delay = 300) => {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(t);
+  }, [value, delay]);
+  return debounced;
+};
+
 const AdminReviews = () => {
   // -------------------- State & Store --------------------
   const token = useEcomStore((s) => s.token);
@@ -62,6 +71,9 @@ const AdminReviews = () => {
   const [selectedIds, setSelectedIds] = useState([]);
   const [actionLoading, setActionLoading] = useState(null);
   const [editingReply, setEditingReply] = useState({});
+
+  // debounced search value
+  const debouncedSearch = useDebounce(searchText, 250);
 
   // -------------------- Fetch Data Logic --------------------
   const fetchReviews = useCallback(async () => {
@@ -98,7 +110,7 @@ const AdminReviews = () => {
     }
 
     // 1.5 Search (client-side)
-    const q = (searchText || "").trim().toLowerCase();
+    const q = (debouncedSearch || "").trim().toLowerCase();
     if (q) {
       currentReviews = currentReviews.filter((r) => {
         return (
@@ -130,7 +142,7 @@ const AdminReviews = () => {
           return dateB - dateA;
       }
     });
-  }, [allReviews, filterStatus, sortBy, searchText]);
+  }, [allReviews, filterStatus, sortBy, debouncedSearch]);
 
   // Pagination
   const totalReviews = filteredAndSortedReviews.length;
