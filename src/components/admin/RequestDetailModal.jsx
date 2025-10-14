@@ -10,6 +10,76 @@ import {
 } from "lucide-react";
 import { API } from "../../api/admin";
 
+// Small component to show a thumbnail with preload to avoid flicker
+const EvidenceThumb = ({ img, idx, allImages, onOpen }) => {
+  const [state, setState] = React.useState({ status: "loading" });
+  const [src, setSrc] = React.useState(img.src);
+
+  React.useEffect(() => {
+    let mounted = true;
+    const loader = new Image();
+    loader.onload = () => {
+      if (!mounted) return;
+      setState({ status: "loaded" });
+      setSrc(img.src);
+    };
+    loader.onerror = () => {
+      if (!mounted) return;
+      setState({ status: "error" });
+      setSrc("/no-image.png");
+    };
+    // Start loading
+    loader.src = img.src;
+    return () => {
+      mounted = false;
+    };
+  }, [img.src]);
+
+  const openIndex = () => {
+    const index = allImages.findIndex((x) => x.src === img.src);
+    onOpen(index >= 0 ? index : 0);
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={openIndex}
+      className="w-24 h-24 rounded-lg overflow-hidden border shadow-sm cursor-pointer hover:shadow-md transition duration-150 relative flex items-center justify-center bg-white"
+      aria-label={`ดูภาพประกอบ ${idx + 1}`}
+    >
+      {state.status === "loading" && (
+        <div className="absolute inset-0 flex items-center justify-center bg-white/60">
+          <svg
+            className="w-6 h-6 text-gray-400 animate-spin"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            ></circle>
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8v4l3-3-3-3v4a12 12 0 00-12 12h4z"
+            ></path>
+          </svg>
+        </div>
+      )}
+      <img
+        src={src}
+        alt={img.alt || `evidence-${idx}`}
+        className="w-full h-full object-cover"
+      />
+    </button>
+  );
+};
+
 const RequestDetailModal = ({
   open,
   onClose,
@@ -308,26 +378,17 @@ const RequestDetailModal = ({
               </h4>
               <div className="mt-2 flex gap-3 overflow-x-auto p-1">
                 {evidenceImgs.map((img, idx) => (
-                  <button
+                  <EvidenceThumb
                     key={idx}
-                    type="button"
-                    onClick={() => {
-                      const idxAll = allImages.findIndex(
-                        (x) => x.src === img.src
-                      );
+                    img={img}
+                    idx={idx}
+                    allImages={allImages}
+                    onOpen={(i) => {
                       setLightboxImages(allImages);
-                      setLightboxIndex(idxAll >= 0 ? idxAll : 0);
+                      setLightboxIndex(i);
                       setLightboxOpen(true);
                     }}
-                    className="w-24 h-24 rounded-lg overflow-hidden border shadow-sm cursor-pointer hover:shadow-md transition duration-150"
-                  >
-                    <img
-                      src={img.src}
-                      onError={(e) => (e.currentTarget.src = "/no-image.png")}
-                      alt={img.alt || `evidence-${idx}`}
-                      className="w-full h-full object-cover"
-                    />
-                  </button>
+                  />
                 ))}
               </div>
             </div>
