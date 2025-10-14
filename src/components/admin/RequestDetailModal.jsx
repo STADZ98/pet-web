@@ -1,5 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
-import { X, Loader2, Mail, Hash, AlertTriangle } from "lucide-react"; // เพิ่มไอคอนเพิ่มเติม
+import {
+  X,
+  Loader2,
+  Mail,
+  Hash,
+  AlertTriangle,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react"; // เพิ่มไอคอนเพิ่มเติม
+import { API } from "../../api/admin";
 
 const RequestDetailModal = ({
   open,
@@ -10,6 +19,9 @@ const RequestDetailModal = ({
 }) => {
   const [rejectReason, setRejectReason] = useState("");
   const [confirmReject, setConfirmReject] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [lightboxImages, setLightboxImages] = useState([]);
   const panelRef = useRef(null);
 
   // Focus and keydown handling (Keep as is, already professional)
@@ -76,6 +88,38 @@ const RequestDetailModal = ({
   };
 
   if (!open || !request) return null;
+
+  // Build an ordered list of images for the lightbox: product images first, then evidence images
+  const buildEvidenceUrl = (img) => {
+    if (!img) return null;
+    if (typeof img === "string") return img;
+    if (img && (img.url || img.src)) return img.url || img.src;
+    // If image is an object with an id (ReturnImage record), use server route
+    if (img && img.id) {
+      const base = (API || "").replace(/\/+$/, "");
+      return `${base}/user/return-image/${img.id}`;
+    }
+    return null;
+  };
+
+  const productImgs = (request.products || [])
+    .map((p) => ({
+      src: p?.product?.image || "/no-image.png",
+      alt: p?.product?.title || "รูปสินค้า",
+      type: "product",
+    }))
+    .filter((x) => !!x.src);
+
+  const evidenceImgs = (request.images || [])
+    .map((img) => {
+      const src = buildEvidenceUrl(img);
+      return src
+        ? { src, alt: img?.filename || "ภาพประกอบ", type: "evidence" }
+        : null;
+    })
+    .filter(Boolean);
+
+  const allImages = [...productImgs, ...evidenceImgs];
 
   return (
     <div
@@ -179,11 +223,32 @@ const RequestDetailModal = ({
                   key={it.id}
                   className="flex gap-4 items-center p-3 rounded-xl border hover:bg-gray-50 transition"
                 >
-                  <img
-                    src={it?.product?.image || "/no-image.png"}
-                    alt={it?.product?.title}
-                    className="w-16 h-16 object-cover rounded-lg border"
-                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // open lightbox at the index of this product image within combined images
+                      const idx = allImages.findIndex(
+                        (x) =>
+                          x.type === "product" &&
+                          x.src === (it?.product?.image || "/no-image.png")
+                      );
+                      if (idx >= 0) {
+                        setLightboxIndex(idx);
+                        setLightboxImages(allImages);
+                        setLightboxOpen(true);
+                      }
+                    }}
+                    className="shrink-0 w-16 h-16 rounded-lg overflow-hidden border"
+                    aria-label={`ดูรูปสินค้าของ ${
+                      it?.product?.title || "รายการ"
+                    }`}
+                  >
+                    <img
+                      src={it?.product?.image || "/no-image.png"}
+                      alt={it?.product?.title}
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
                   <div className="flex-1">
                     <p className="font-semibold text-gray-900 line-clamp-1">
                       {it?.product?.title || "ไม่ทราบชื่อสินค้า"}
@@ -199,21 +264,90 @@ const RequestDetailModal = ({
           </div>
 
           {/* Evidence Images */}
-          {request.images?.length > 0 && (
+          {evidenceImgs.length > 0 && (
             <div>
               <h4 className="text-base font-semibold text-gray-800 mb-3">
-                ภาพประกอบ ({request.images.length})
+                ภาพประกอบ ({evidenceImgs.length})
               </h4>
               <div className="mt-2 flex gap-3 overflow-x-auto p-1">
-                {request.images.map((src, idx) => (
-                  <img
+                {evidenceImgs.map((img, idx) => (
+                  <button
                     key={idx}
-                    src={src}
-                    alt={`evidence-${idx}`}
-                    className="w-24 h-24 object-cover rounded-lg border shadow-sm cursor-pointer hover:shadow-md transition duration-150"
-                    // สามารถเพิ่ม onClick เพื่อเปิดดูรูปขนาดใหญ่ได้
-                  />
+                    type="button"
+                    onClick={() => {
+                      const idxAll = allImages.findIndex(
+                        (x) => x.src === img.src
+                      );
+                      setLightboxImages(allImages);
+                      setLightboxIndex(idxAll >= 0 ? idxAll : 0);
+                      setLightboxOpen(true);
+                    }}
+                    className="w-24 h-24 rounded-lg overflow-hidden border shadow-sm cursor-pointer hover:shadow-md transition duration-150"
+                    aria-label={`ดูภาพประกอบ ${idx + 1}`}
+                  >
+                    <img
+                      src={img.src}
+                      alt={img.alt || `evidence-${idx}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* Lightbox Overlay */}
+          {lightboxOpen && lightboxImages.length > 0 && (
+            <div
+              className="fixed inset-0 z-60 flex items-center justify-center bg-black/80 p-4"
+              role="dialog"
+              aria-modal="true"
+              onClick={() => setLightboxOpen(false)}
+            >
+              <div
+                className="relative max-w-[95%] max-h-[95%]"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  onClick={() => setLightboxOpen(false)}
+                  className="absolute top-2 right-2 z-50 p-2 rounded-full bg-white/20 hover:bg-white/40 text-white"
+                  aria-label="ปิดรูป"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+
+                <button
+                  onClick={() =>
+                    setLightboxIndex(
+                      (i) =>
+                        (i - 1 + lightboxImages.length) % lightboxImages.length
+                    )
+                  }
+                  className="absolute left-2 top-1/2 -translate-y-1/2 z-50 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white"
+                  aria-label="รูปก่อนหน้า"
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+
+                <img
+                  src={lightboxImages[lightboxIndex].src}
+                  alt={lightboxImages[lightboxIndex].alt || "รูปขนาดใหญ่"}
+                  className="max-w-full max-h-[80vh] object-contain mx-auto block"
+                />
+
+                <button
+                  onClick={() =>
+                    setLightboxIndex((i) => (i + 1) % lightboxImages.length)
+                  }
+                  className="absolute right-2 top-1/2 -translate-y-1/2 z-50 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white"
+                  aria-label="รูปถัดไป"
+                >
+                  <ChevronRight className="w-6 h-6" />
+                </button>
+
+                <div className="mt-2 text-center text-sm text-white/90">
+                  {lightboxImages[lightboxIndex].alt}
+                </div>
               </div>
             </div>
           )}
