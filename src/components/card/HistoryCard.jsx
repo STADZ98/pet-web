@@ -1106,8 +1106,8 @@ const HistoryCard = () => {
                       Array.isArray(order.returnRequests) &&
                       order.returnRequests.some((rr) => rr.status === "PENDING")
                     ) &&
-                    // hide return button if more than 7 days have passed since delivery
-                    daysSince(order.updatedAt || order.deliveredAt) <= 7 && (
+                    // hide return button if more than 1 day has passed since delivery
+                    daysSince(order.updatedAt || order.deliveredAt) <= 1 && (
                       <button
                         onClick={() => openReturnModal(order)}
                         className="px-5 py-2 bg-yellow-500 text-white rounded-full font-semibold hover:bg-yellow-600 transition-colors shadow-sm"
