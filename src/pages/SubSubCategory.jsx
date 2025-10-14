@@ -55,25 +55,40 @@ const SubSubCategory = () => {
       subcategories.find((s) => {
         const name = getCategoryName(s) || "";
         return (
-          name === subcategoryParam || String(s.id) === subcategoryParam || String(s._id) === subcategoryParam
+          name === subcategoryParam ||
+          String(s.id) === subcategoryParam ||
+          String(s._id) === subcategoryParam
         );
       }) || null
     );
   }, [subcategories, subcategoryParam]);
 
-  const allSubSubcategories = useMemo(() => subcategories.flatMap((s) => s.subsubcategories || []), [subcategories]);
+  const allSubSubcategories = useMemo(
+    () => subcategories.flatMap((s) => s.subsubcategories || []),
+    [subcategories]
+  );
 
   const filteredSubSubcategories = useMemo(() => {
     if (!subcategory) return [];
     return allSubSubcategories.filter(
-      (subsub) => String(subsub.subcategoryId) === String(subcategory.id) || String(subsub.subcategoryId) === String(subcategory._id)
+      (subsub) =>
+        String(subsub.subcategoryId) === String(subcategory.id) ||
+        String(subsub.subcategoryId) === String(subcategory._id)
     );
   }, [allSubSubcategories, subcategory]);
 
   const visibleSubSubcategories = useMemo(() => {
-    const list = (filteredSubSubcategories || []).map((s) => ({ ...s, __image: getCategoryOrSubCategoryImage(s) }));
-    let filtered = list.filter((s) => (s.name || "").toLowerCase().includes((searchTerm || "").toLowerCase()));
-    if (sortBy === "alpha") filtered.sort((a, b) => a.name.localeCompare(b.name, "th", { sensitivity: "base" }));
+    const list = (filteredSubSubcategories || []).map((s) => ({
+      ...s,
+      __image: getCategoryOrSubCategoryImage(s),
+    }));
+    let filtered = list.filter((s) =>
+      (s.name || "").toLowerCase().includes((searchTerm || "").toLowerCase())
+    );
+    if (sortBy === "alpha")
+      filtered.sort((a, b) =>
+        a.name.localeCompare(b.name, "th", { sensitivity: "base" })
+      );
     return filtered;
   }, [filteredSubSubcategories, searchTerm, sortBy]);
 
@@ -97,7 +112,10 @@ const SubSubCategory = () => {
             try {
               const res = await listProductBySubsubcategory(s._id || s.id);
               if (!mounted) return;
-              setSubsubPreviews((p) => ({ ...p, [s._id || s.id]: (res.data || []).slice(0, 3) }));
+              setSubsubPreviews((p) => ({
+                ...p,
+                [s._id || s.id]: (res.data || []).slice(0, 3),
+              }));
             } catch (e) {
               // ignore
             }
@@ -120,14 +138,30 @@ const SubSubCategory = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
             <div className="md:col-span-2 bg-white/80 backdrop-blur-md rounded-xl p-8 shadow-md">
-              <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-3">{subcategory ? `หมวดหมู่ ${getCategoryName(subcategory) || subcategory.name}` : 'สำรวจหมวดหมู่ย่อย'}</h1>
-              <p className="text-gray-600 text-base md:text-lg mb-6">{subcategory ? `ดูรายการหมวดหมู่ย่อยระดับ 2 ภายใต้ "${getCategoryName(subcategory) || subcategory.name}"` : 'เรียกดูหมวดหมู่ย่อยระดับ 2 ที่มีให้เลือก'}</p>
+              <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-3">
+                {subcategory
+                  ? `หมวดหมู่ ${
+                      getCategoryName(subcategory) || subcategory.name
+                    }`
+                  : "สำรวจหมวดหมู่ย่อย"}
+              </h1>
+              <p className="text-gray-600 text-base md:text-lg mb-6">
+                {subcategory
+                  ? `ดูรายการหมวดหมู่ย่อยระดับ 2 ภายใต้ "${
+                      getCategoryName(subcategory) || subcategory.name
+                    }"`
+                  : "เรียกดูหมวดหมู่ย่อยระดับ 2 ที่มีให้เลือก"}
+              </p>
             </div>
             <div className="md:col-span-1">
               <div className="rounded-xl overflow-hidden shadow-lg bg-white">
                 <div className="h-48 md:h-56 w-full bg-gray-100 flex items-center justify-center">
                   {subcategory ? (
-                    <img src={getCategoryOrSubCategoryImage(subcategory)} alt={getCategoryName(subcategory)} className="w-full h-full object-cover object-center" />
+                    <img
+                      src={getCategoryOrSubCategoryImage(subcategory)}
+                      alt={getCategoryName(subcategory)}
+                      className="w-full h-full object-cover object-center"
+                    />
                   ) : (
                     <div className="text-center p-6">
                       <p className="text-sm text-gray-500 mt-2">รูปตัวอย่าง</p>
@@ -140,97 +174,34 @@ const SubSubCategory = () => {
         </div>
       </section>
 
-      <nav aria-label="Breadcrumb" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <nav
+        aria-label="Breadcrumb"
+        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
+      >
         <div className="bg-white/80 backdrop-blur-sm rounded-lg px-4 py-3 shadow-sm border border-gray-100">
           <ol className="flex items-center space-x-3 text-sm text-gray-600">
             <li>
-              <Link to="/" className="inline-flex items-center text-gray-600 hover:text-gray-800">
-                <svg className="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9.75L12 4l9 5.75V20a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1V9.75z" />
-                </svg>
-                หน้าหลัก
-              </Link>
-            </li>
-            <li className="text-gray-300">/</li>
-            <li>
-              <Link to="/shop" className="text-gray-700 hover:text-gray-900 font-medium">สินค้า</Link>
-            </li>
-            {subcategory && (
-              <>
-                <li className="text-gray-300">/</li>
-                <li aria-current="page" className="text-gray-900 font-semibold truncate max-w-xs">{getCategoryName(subcategory) || subcategory.name}</li>
-              </>
-            )}
-          </ol>
-        </div>
-      </nav>
-
-      <div className="max-w-7xl mx-auto flex flex-col md:flex-row gap-8 py-10 px-4 md:px-6 flex-1 w-full">
-        <aside className="w-full md:w-72 mb-8 md:mb-0">
-          <div className="sticky top-28">
-            <SidebarFilter />
-          </div>
-        </aside>
-
-        <main className="flex-1 flex flex-col">
-          <div className="w-full max-w-5xl">
-            <div className="flex items-center justify-between mb-8 gap-4 flex-wrap">
-              <div className="flex items-center bg-white border border-gray-200 rounded-xl px-3 py-2 w-full md:w-80 shadow-sm">
-                <input aria-label="ค้นหาหมวดหมู่ย่อย" placeholder="ค้นหาหมวดหมู่ย่อย..." className="bg-transparent outline-none text-sm text-gray-700 w-full" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-              </div>
-              <div className="flex items-center gap-2">
-                <select id="sort" className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-700 shadow-sm" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-                  <option value="popular">ยอดนิยม</option>
-                  <option value="alpha">ชื่อ (A–Z)</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-              {paginatedVisible.length === 0 ? Array.from({ length: 6 }).map((_, i) => <LoadingSkeleton key={i} />) : paginatedVisible.map((subsub) => (
-                <div key={subsub._id || subsub.id}>
-                  <Card name={subsub.name} image={subsub.__image} onClick={() => navigate(`/shop/productListingPage?subsubcategory=${encodeURIComponent(subsub.name)}`)} />
-                  <div className="mt-2 flex items-center gap-2 justify-center">
-                    {(subsubPreviews[subsub._id || subsub.id] || []).slice(0, 3).map((p) => (
-                      <img key={p.id} src={p.image || "/img/no-image.png"} alt={p.title} className="w-12 h-12 object-cover rounded" />
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-6 flex items-center justify-center gap-3">
-              <button className="px-3 py-2 bg-white border rounded disabled:opacity-50" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>ก่อนหน้า</button>
-              <span className="text-sm text-gray-600">หน้า {page}</span>
-              <button className="px-3 py-2 bg-white border rounded disabled:opacity-50" onClick={() => setPage((p) => p + 1)} disabled={page * pageSize >= visibleSubSubcategories.length}>ถัดไป</button>
-            </div>
-          </div>
-        </main>
-      </div>
-    </div>
-  );
-};
-
-export default SubSubCategory;
+              <Link
+                to="/"
+                className="inline-flex items-center text-gray-600 hover:text-gray-800"
+              >
+                <svg
                   className="w-4 h-4 mr-2 text-gray-500"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
                 >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth="2"
                     d="M3 9.75L12 4l9 5.75V20a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1V9.75z"
-                  ></path>
+                  />
                 </svg>
                 หน้าหลัก
               </Link>
             </li>
-
             <li className="text-gray-300">/</li>
-
             <li>
               <Link
                 to="/shop"
@@ -239,26 +210,14 @@ export default SubSubCategory;
                 สินค้า
               </Link>
             </li>
-
-            {categoryName && (
+            {subcategory && (
               <>
                 <li className="text-gray-300">/</li>
                 <li
                   aria-current="page"
                   className="text-gray-900 font-semibold truncate max-w-xs"
                 >
-                  {categoryName}
-                </li>
-              </>
-            )}
-            {subcategoryDisplayName && (
-              <>
-                <li className="text-gray-300">/</li>
-                <li
-                  aria-current="page"
-                  className="text-gray-900 font-semibold truncate max-w-xs"
-                >
-                  {subcategoryDisplayName}
+                  {getCategoryName(subcategory) || subcategory.name}
                 </li>
               </>
             )}
@@ -266,35 +225,17 @@ export default SubSubCategory;
         </div>
       </nav>
 
-      {/* Main Content */}
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row gap-8 py-10 px-4 md:px-6 flex-1 w-full">
-        {/* Sidebar */}
         <aside className="w-full md:w-72 mb-8 md:mb-0">
           <div className="sticky top-28">
             <SidebarFilter />
           </div>
         </aside>
 
-        {/* Grid */}
         <main className="flex-1 flex flex-col">
           <div className="w-full max-w-5xl">
-            {/* Toolbar */}
             <div className="flex items-center justify-between mb-8 gap-4 flex-wrap">
-              {/* Search */}
               <div className="flex items-center bg-white border border-gray-200 rounded-xl px-3 py-2 w-full md:w-80 shadow-sm">
-                <svg
-                  className="w-5 h-5 text-gray-400 mr-2"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"
-                  />
-                </svg>
                 <input
                   aria-label="ค้นหาหมวดหมู่ย่อย"
                   placeholder="ค้นหาหมวดหมู่ย่อย..."
@@ -303,12 +244,7 @@ export default SubSubCategory;
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-
-              {/* Sort */}
               <div className="flex items-center gap-2">
-                <label htmlFor="sort" className="sr-only">
-                  เรียงลำดับ
-                </label>
                 <select
                   id="sort"
                   className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-700 shadow-sm"
@@ -321,26 +257,56 @@ export default SubSubCategory;
               </div>
             </div>
 
-            {/* Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-              {visibleSubSubcategories.length === 0
+              {paginatedVisible.length === 0
                 ? Array.from({ length: 6 }).map((_, i) => (
                     <LoadingSkeleton key={i} />
                   ))
-                : visibleSubSubcategories.map((subsub) => (
-                    <Card
-                      key={subsub._id || subsub.id}
-                      name={subsub.name}
-                      image={subsub.__image}
-                      onClick={() =>
-                        navigate(
-                          `/shop/productListingPage?subsubcategory=${encodeURIComponent(
-                            subsub.name
-                          )}`
-                        )
-                      }
-                    />
+                : paginatedVisible.map((subsub) => (
+                    <div key={subsub._id || subsub.id}>
+                      <Card
+                        name={subsub.name}
+                        image={subsub.__image}
+                        onClick={() =>
+                          navigate(
+                            `/shop/productListingPage?subsubcategory=${encodeURIComponent(
+                              subsub.name
+                            )}`
+                          )
+                        }
+                      />
+                      <div className="mt-2 flex items-center gap-2 justify-center">
+                        {(subsubPreviews[subsub._id || subsub.id] || [])
+                          .slice(0, 3)
+                          .map((p) => (
+                            <img
+                              key={p.id}
+                              src={p.image || "/img/no-image.png"}
+                              alt={p.title}
+                              className="w-12 h-12 object-cover rounded"
+                            />
+                          ))}
+                      </div>
+                    </div>
                   ))}
+            </div>
+
+            <div className="mt-6 flex items-center justify-center gap-3">
+              <button
+                className="px-3 py-2 bg-white border rounded disabled:opacity-50"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+              >
+                ก่อนหน้า
+              </button>
+              <span className="text-sm text-gray-600">หน้า {page}</span>
+              <button
+                className="px-3 py-2 bg-white border rounded disabled:opacity-50"
+                onClick={() => setPage((p) => p + 1)}
+                disabled={page * pageSize >= visibleSubSubcategories.length}
+              >
+                ถัดไป
+              </button>
             </div>
           </div>
         </main>
