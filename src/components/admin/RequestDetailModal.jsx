@@ -108,12 +108,39 @@ const RequestDetailModal = ({
   // ✅ ฟังก์ชันสร้าง URL สำหรับภาพประกอบการคืน
   const buildEvidenceUrl = (img) => {
     if (!img) return null;
-    if (typeof img === "string") return img;
-    if (img && (img.url || img.src)) return img.url || img.src;
+
+    // If it's a string, resolve absolute/relative cases
+    if (typeof img === "string") {
+      const s = img.trim();
+      // data or blob urls are used as-is
+      if (/^data:|^blob:/i.test(s)) return s;
+      // full http(s) urls -> normalize to https
+      if (/^(https?:)?\/\//i.test(s)) {
+        return s.startsWith("http://") ? s.replace("http://", "https://") : s;
+      }
+      // relative path starting with / -> prefix with API base if available, otherwise use current origin
+      if (s.startsWith("/")) {
+        const base = (API || "").replace(/\/+$/, "");
+        if (base) return `${base}${s}`;
+        return `${window.location.origin}${s}`;
+      }
+      // other strings (maybe filename) -> try prefix with API
+      const base = (API || "").replace(/\/+$/, "");
+      return base ? `${base}/${s.replace(/^\/+/, "")}` : s;
+    }
+
+    // Object with url/src
+    if (img && (img.url || img.src)) {
+      return buildEvidenceUrl(img.url || img.src);
+    }
+
+    // ReturnImage record with id
     if (img && img.id) {
       const base = (API || "").replace(/\/+$/, "");
-      return `${base}/user/return-image/${img.id}`;
+      if (base) return `${base}/user/return-image/${img.id}`;
+      return `${window.location.origin}/user/return-image/${img.id}`;
     }
+
     return null;
   };
 
