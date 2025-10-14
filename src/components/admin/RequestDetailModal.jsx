@@ -296,6 +296,24 @@ const RequestDetailModal = ({
             </div>
           )}
 
+          {/* Debug: show raw image URLs for troubleshooting (visible to admin) */}
+          {evidenceImgs.length > 0 && (
+            <div className="mt-2 text-xs text-gray-500">
+              <details className="mt-2">
+                <summary className="cursor-pointer">
+                  🔍 รายละเอียด URL รูป (debug)
+                </summary>
+                <ul className="list-disc pl-5 mt-2">
+                  {evidenceImgs.map((img, i) => (
+                    <li key={i} className="break-words">
+                      {img.src}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            </div>
+          )}
+
           {/* Lightbox Overlay */}
           {lightboxOpen && lightboxImages.length > 0 && (
             <div
