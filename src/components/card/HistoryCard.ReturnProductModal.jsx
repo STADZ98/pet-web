@@ -21,6 +21,8 @@ const ReturnProductModal = ({
   setReturnReason,
   customReason,
   setCustomReason,
+  returnImages = [],
+  setReturnImages = () => {},
   returnLoading,
   step,
   setStep,
@@ -282,6 +284,67 @@ const ReturnProductModal = ({
                           className="w-full border border-gray-300 rounded-lg p-3 resize-none min-h-[150px] shadow-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 mt-2"
                         />
                       )}
+                      {/* Image uploader for return evidence */}
+                      <div className="mt-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          แนบรูปสินค้าที่จะคืน (อย่างน้อย 2 รูป)
+                        </label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={(e) => {
+                            const files = Array.from(e.target.files || []);
+                            if (!files || files.length === 0) return;
+                            // limit total to 6 images
+                            const max = 6;
+                            const allowed = files.slice(
+                              0,
+                              max - (returnImages?.length || 0)
+                            );
+                            setReturnImages((prev) => [
+                              ...(prev || []),
+                              ...allowed,
+                            ]);
+                            // reset input so same file can be selected again if removed
+                            e.target.value = null;
+                          }}
+                          className="block w-full text-sm text-gray-500 file:bg-red-600 file:text-white file:px-3 file:py-2 file:rounded-lg file:border-0"
+                        />
+
+                        <div className="mt-3 grid grid-cols-3 gap-2">
+                          {(returnImages || []).map((file, idx) => {
+                            const url = URL.createObjectURL(file);
+                            return (
+                              <div key={idx} className="relative">
+                                <img
+                                  src={url}
+                                  alt={`preview-${idx}`}
+                                  className="w-full h-24 object-cover rounded-md border"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setReturnImages((prev) =>
+                                      prev.filter((_, i) => i !== idx)
+                                    );
+                                  }}
+                                  className="absolute -top-2 -right-2 bg-white rounded-full p-1 shadow border"
+                                  aria-label="ลบรูป"
+                                >
+                                  <X size={16} />
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {(returnImages || []).length < 2 && (
+                          <div className="mt-2 text-sm text-red-500">
+                            โปรดแนบรูปอย่างน้อย 2 รูปเพื่อดำเนินการต่อ
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div className="flex justify-between mt-8">
                       <button

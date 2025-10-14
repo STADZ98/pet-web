@@ -110,6 +110,7 @@ const HistoryCard = () => {
   const [selectedReturnProducts, setSelectedReturnProducts] = useState([]);
   const [returnReason, setReturnReason] = useState("");
   const [customReason, setCustomReason] = useState("");
+  const [returnImages, setReturnImages] = useState([]);
   const [returnLoading, setReturnLoading] = useState(false);
   const [step, setStep] = useState(1);
   const [activeStatus, setActiveStatus] = useState(null);
@@ -399,6 +400,7 @@ const HistoryCard = () => {
     setSelectedReturnProducts([]);
     setReturnReason("");
     setCustomReason("");
+    setReturnImages([]);
     setStep(1);
     setIsReturnOpen(true);
   };
@@ -409,6 +411,7 @@ const HistoryCard = () => {
     setSelectedReturnProducts([]);
     setReturnReason("");
     setCustomReason("");
+    setReturnImages([]);
     setStep(1);
   };
 
@@ -419,14 +422,25 @@ const HistoryCard = () => {
       const orderId = returnOrder._id || returnOrder.id;
       const productIds = selectedReturnProducts;
       const reason = returnReason === "อื่น ๆ" ? customReason : returnReason;
+      // Require at least 2 images attached
+      if (!returnImages || returnImages.length < 2) {
+        toast.error("กรุณาแนบรูปสินค้าที่จะคืนอย่างน้อย 2 รูป");
+        setReturnLoading(false);
+        return;
+      }
       const backendUrl = import.meta.env.VITE_API || "/api";
+      // Build FormData to include images
+      const fd = new FormData();
+      fd.append("productIds", JSON.stringify(productIds));
+      fd.append("reason", reason || "");
+      returnImages.forEach((f) => fd.append("images", f));
+
       const res = await fetch(`${backendUrl}/user/order/${orderId}/return`, {
         method: "PATCH",
         headers: {
-          "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ productIds, reason }),
+        body: fd,
       });
       const data = await res.json();
       if (!res.ok) {
@@ -1139,6 +1153,8 @@ const HistoryCard = () => {
           setReturnReason={setReturnReason}
           customReason={customReason}
           setCustomReason={setCustomReason}
+          returnImages={returnImages}
+          setReturnImages={setReturnImages}
           returnLoading={returnLoading}
           step={step}
           setStep={setStep}
