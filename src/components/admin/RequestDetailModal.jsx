@@ -7,7 +7,7 @@ import {
   AlertTriangle,
   ChevronLeft,
   ChevronRight,
-} from "lucide-react"; // เพิ่มไอคอนเพิ่มเติม
+} from "lucide-react";
 import { API } from "../../api/admin";
 
 const RequestDetailModal = ({
@@ -24,9 +24,8 @@ const RequestDetailModal = ({
   const [lightboxImages, setLightboxImages] = useState([]);
   const panelRef = useRef(null);
 
-  // Focus and keydown handling (Keep as is, already professional)
+  // Focus handling
   useEffect(() => {
-    // ... (logic เดิมสำหรับ focus และ Esc key) ...
     if (open) {
       setRejectReason("");
       setConfirmReject(false);
@@ -56,7 +55,7 @@ const RequestDetailModal = ({
     }
   }, [open, onClose]);
 
-  // Status Color Helper + label mapping
+  // Status mapping
   const STATUS_MAP = {
     PENDING: {
       class:
@@ -89,12 +88,28 @@ const RequestDetailModal = ({
 
   if (!open || !request) return null;
 
-  // Build an ordered list of images for the lightbox: product images first, then evidence images
+  // ✅ ฟังก์ชันช่วยสร้าง URL รูปสินค้าจากทุกกรณี
+  const buildProductImageUrl = (img) => {
+    if (!img) return "/no-image.png";
+
+    // base64
+    if (typeof img === "string" && img.startsWith("data:image")) return img;
+
+    // path ภายใน server
+    if (typeof img === "string" && !img.startsWith("http")) {
+      const base = (API || "").replace(/\/+$/, "");
+      return `${base}${img.startsWith("/") ? "" : "/"}${img}`;
+    }
+
+    // URL ปกติ
+    return img;
+  };
+
+  // ✅ ฟังก์ชันสร้าง URL สำหรับภาพประกอบการคืน
   const buildEvidenceUrl = (img) => {
     if (!img) return null;
     if (typeof img === "string") return img;
     if (img && (img.url || img.src)) return img.url || img.src;
-    // If image is an object with an id (ReturnImage record), use server route
     if (img && img.id) {
       const base = (API || "").replace(/\/+$/, "");
       return `${base}/user/return-image/${img.id}`;
@@ -104,7 +119,7 @@ const RequestDetailModal = ({
 
   const productImgs = (request.products || [])
     .map((p) => ({
-      src: p?.product?.image || "/no-image.png",
+      src: buildProductImageUrl(p?.product?.image),
       alt: p?.product?.title || "รูปสินค้า",
       type: "product",
     }))
@@ -126,13 +141,11 @@ const RequestDetailModal = ({
       className="fixed inset-0 z-50 flex items-start md:items-center justify-end"
       role="presentation"
     >
-      {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-300"
         onClick={onClose}
         aria-hidden
       />
-      {/* Modal / Slide-Over Panel */}
       <aside
         className="relative ml-auto w-full h-full sm:max-w-lg md:max-w-xl lg:max-w-2xl bg-white shadow-2xl overflow-y-auto transform transition-transform duration-300 ease-in-out translate-x-0"
         role="dialog"
@@ -165,7 +178,7 @@ const RequestDetailModal = ({
 
         {/* Content */}
         <div className="p-6 space-y-6" tabIndex={-1} ref={panelRef}>
-          {/* Status & Customer Info */}
+          {/* Status & Customer */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-b pb-4">
             <div className="space-y-1">
               <h4 className="text-xs font-semibold uppercase text-gray-500">
@@ -198,7 +211,7 @@ const RequestDetailModal = ({
             </p>
           </div>
 
-          {/* Rejection Note (If Rejected) */}
+          {/* Rejection Note */}
           {normalize(request.status) === "REJECTED" &&
             request.rejectionNote && (
               <div className="bg-red-50 p-4 rounded-lg border border-red-300">
@@ -212,7 +225,7 @@ const RequestDetailModal = ({
               </div>
             )}
 
-          {/* Product Items */}
+          {/* Product List */}
           <div>
             <h4 className="text-base font-semibold text-gray-800 mb-3">
               รายการสินค้าที่ขอคืน ({request.products?.length || 0})
@@ -226,11 +239,10 @@ const RequestDetailModal = ({
                   <button
                     type="button"
                     onClick={() => {
-                      // open lightbox at the index of this product image within combined images
                       const idx = allImages.findIndex(
                         (x) =>
                           x.type === "product" &&
-                          x.src === (it?.product?.image || "/no-image.png")
+                          x.src === buildProductImageUrl(it?.product?.image)
                       );
                       if (idx >= 0) {
                         setLightboxIndex(idx);
@@ -239,12 +251,10 @@ const RequestDetailModal = ({
                       }
                     }}
                     className="shrink-0 w-16 h-16 rounded-lg overflow-hidden border"
-                    aria-label={`ดูรูปสินค้าของ ${
-                      it?.product?.title || "รายการ"
-                    }`}
                   >
                     <img
-                      src={it?.product?.image || "/no-image.png"}
+                      src={buildProductImageUrl(it?.product?.image)}
+                      onError={(e) => (e.currentTarget.src = "/no-image.png")}
                       alt={it?.product?.title}
                       className="w-full h-full object-cover"
                     />
@@ -283,10 +293,10 @@ const RequestDetailModal = ({
                       setLightboxOpen(true);
                     }}
                     className="w-24 h-24 rounded-lg overflow-hidden border shadow-sm cursor-pointer hover:shadow-md transition duration-150"
-                    aria-label={`ดูภาพประกอบ ${idx + 1}`}
                   >
                     <img
                       src={img.src}
+                      onError={(e) => (e.currentTarget.src = "/no-image.png")}
                       alt={img.alt || `evidence-${idx}`}
                       className="w-full h-full object-cover"
                     />
@@ -296,7 +306,7 @@ const RequestDetailModal = ({
             </div>
           )}
 
-          {/* Debug: show raw image URLs for troubleshooting (visible to admin) */}
+          {/* Debug URLs */}
           {evidenceImgs.length > 0 && (
             <div className="mt-2 text-xs text-gray-500">
               <details className="mt-2">
@@ -314,7 +324,7 @@ const RequestDetailModal = ({
             </div>
           )}
 
-          {/* Lightbox Overlay */}
+          {/* Lightbox */}
           {lightboxOpen && lightboxImages.length > 0 && (
             <div
               className="fixed inset-0 z-60 flex items-center justify-center bg-black/80 p-4"
@@ -329,7 +339,6 @@ const RequestDetailModal = ({
                 <button
                   onClick={() => setLightboxOpen(false)}
                   className="absolute top-2 right-2 z-50 p-2 rounded-full bg-white/20 hover:bg-white/40 text-white"
-                  aria-label="ปิดรูป"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -342,13 +351,13 @@ const RequestDetailModal = ({
                     )
                   }
                   className="absolute left-2 top-1/2 -translate-y-1/2 z-50 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white"
-                  aria-label="รูปก่อนหน้า"
                 >
                   <ChevronLeft className="w-6 h-6" />
                 </button>
 
                 <img
                   src={lightboxImages[lightboxIndex].src}
+                  onError={(e) => (e.currentTarget.src = "/no-image.png")}
                   alt={lightboxImages[lightboxIndex].alt || "รูปขนาดใหญ่"}
                   className="max-w-full max-h-[80vh] object-contain mx-auto block"
                 />
@@ -358,7 +367,6 @@ const RequestDetailModal = ({
                     setLightboxIndex((i) => (i + 1) % lightboxImages.length)
                   }
                   className="absolute right-2 top-1/2 -translate-y-1/2 z-50 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white"
-                  aria-label="รูปถัดไป"
                 >
                   <ChevronRight className="w-6 h-6" />
                 </button>
@@ -370,13 +378,11 @@ const RequestDetailModal = ({
             </div>
           )}
 
-          {/* --- ACTIONS --- */}
+          {/* Actions */}
           <div className="pt-6 border-t mt-6">
             <h4 className="text-base font-semibold text-gray-800 mb-3">
               การดำเนินการ
             </h4>
-
-            {/* Primary Action Buttons */}
             <div className="flex flex-wrap gap-3">
               <button
                 disabled={
@@ -385,7 +391,6 @@ const RequestDetailModal = ({
                 }
                 onClick={() => onAction(request.id, "APPROVED")}
                 className="flex items-center justify-center px-6 py-2 rounded-lg bg-green-600 text-white font-semibold hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
-                aria-label="อนุมัติคำร้อง"
               >
                 {updatingId === request.id ? (
                   <Loader2 className="w-5 h-5 animate-spin mr-2" />
@@ -396,15 +401,12 @@ const RequestDetailModal = ({
 
               <button
                 onClick={() => setConfirmReject((s) => !s)}
-                aria-expanded={confirmReject}
                 className="px-6 py-2 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 transition shadow-md"
-                aria-label="ปฏิเสธคำร้อง"
               >
                 {confirmReject ? "ยกเลิกการปฏิเสธ" : "❌ ปฏิเสธคำร้อง"}
               </button>
             </div>
 
-            {/* Reject Confirmation/Reason Area */}
             {confirmReject && (
               <div className="space-y-3 mt-4 p-4 border border-red-300 rounded-lg bg-red-50">
                 <label
@@ -426,10 +428,9 @@ const RequestDetailModal = ({
                     disabled={!rejectReason.trim() || updatingId === request.id}
                     onClick={() => {
                       onAction(request.id, "REJECTED", { note: rejectReason });
-                      onClose(); // ปิด Modal หลังจากส่ง
+                      onClose();
                     }}
                     className="px-4 py-2 rounded-lg bg-red-700 text-white font-medium hover:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                    aria-label="ยืนยันการปฏิเสธ"
                   >
                     {updatingId === request.id ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
