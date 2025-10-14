@@ -345,6 +345,15 @@ const HistoryCard = () => {
     }
   };
 
+  // Helper: days since a date (returns number of full days)
+  const daysSince = (dateStr) => {
+    if (!dateStr) return Infinity;
+    const t = new Date(dateStr).getTime();
+    if (isNaN(t)) return Infinity;
+    const diff = Date.now() - t;
+    return Math.floor(diff / (24 * 60 * 60 * 1000));
+  };
+
   const openModal = (order) => {
     // Close other modals first to avoid nested Headless UI Dialogs which can
     // trigger internal React / Headless UI focus-management errors when two
@@ -1096,7 +1105,9 @@ const HistoryCard = () => {
                     !(
                       Array.isArray(order.returnRequests) &&
                       order.returnRequests.some((rr) => rr.status === "PENDING")
-                    ) && (
+                    ) &&
+                    // hide return button if more than 7 days have passed since delivery
+                    daysSince(order.updatedAt || order.deliveredAt) <= 7 && (
                       <button
                         onClick={() => openReturnModal(order)}
                         className="px-5 py-2 bg-yellow-500 text-white rounded-full font-semibold hover:bg-yellow-600 transition-colors shadow-sm"
