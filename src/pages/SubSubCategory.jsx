@@ -1,13 +1,14 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import useEcomStore from "../store/ecom-store";
 import SidebarFilter from "../components/card/SidebarFilter";
 import { getCategoryName } from "../utils/categoryUtils";
-import { listProductBySubsubcategory } from "../api/product";
 
+// Helper for images with fallback
 const getCategoryOrSubCategoryImage = (item) =>
-  (item && (item.images || item.image)) || "/img/default-category.png";
+  item.images || item.image || "/img/default-category.png";
 
+// Loading Skeleton (card style)
 const LoadingSkeleton = () => (
   <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 animate-pulse">
     <div className="h-40 bg-gray-200 rounded-xl mb-4 w-full" />
@@ -16,6 +17,7 @@ const LoadingSkeleton = () => (
   </div>
 );
 
+// Sub-subcategory Card
 const Card = ({ name, image, onClick }) => (
   <button
     type="button"
@@ -33,6 +35,28 @@ const Card = ({ name, image, onClick }) => (
           e.target.src = "/img/default-category.png";
         }}
       />
+      {/* Overlay */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          <span className="inline-flex items-center gap-2 bg-yellow-400/95 text-yellow-900 font-semibold text-sm px-4 py-2 rounded-full shadow-md">
+            ดูสินค้า
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M9 5l7 7-7 7"
+              />
+            </svg>
+          </span>
+        </span>
+      </div>
     </div>
     <div className="p-4 text-center">
       <h3 className="text-lg font-semibold text-gray-800 truncate">{name}</h3>
@@ -41,15 +65,17 @@ const Card = ({ name, image, onClick }) => (
 );
 
 const SubSubCategory = () => {
-  const categories = useEcomStore((s) => s.categories || []);
-  const subcategories = useEcomStore((s) => s.subcategories || []);
+  const categories = useEcomStore((state) => state.categories || []);
+  const subcategories = useEcomStore((state) => state.subcategories || []);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("popular");
 
+  // query params (use distinct local names to avoid collisions)
   const subcategoryParam = searchParams.get("subcategory") || "";
 
+  // หา subcategory ที่เลือก (object)
   const subcategory = useMemo(() => {
     return (
       subcategories.find((s) => {
@@ -63,11 +89,41 @@ const SubSubCategory = () => {
     );
   }, [subcategories, subcategoryParam]);
 
+  // รวม subsubcategories ทั้งหมด (ต้องสร้างก่อนใช้เพื่อค้นหา)
   const allSubSubcategories = useMemo(
     () => subcategories.flatMap((s) => s.subsubcategories || []),
     [subcategories]
   );
 
+  // (subsubcategory lookup removed because it's not used in this component)
+
+  // หา category หลักของ subcategory (display name)
+  const categoryName = useMemo(() => {
+    if (!subcategory || categories.length === 0) return "";
+    const cat = categories.find(
+      (c) => String(c._id || c.id) === String(subcategory.categoryId)
+    );
+    return (
+      cat &&
+      (typeof cat.name === "object" ? cat.name.th || cat.name.en : cat.name)
+    );
+  }, [subcategory, categories]);
+
+  // ชื่อที่จะแสดงของ subcategory (display)
+  const subcategoryDisplayName = useMemo(() => {
+    if (!subcategory) return subcategoryParam || "";
+    const name = getCategoryName(subcategory);
+    return (
+      name ||
+      (typeof subcategory.name === "object"
+        ? subcategory.name.th || subcategory.name.en
+        : subcategory.name)
+    );
+  }, [subcategory, subcategoryParam]);
+
+  // (allSubSubcategories already defined above and used)
+
+  // filter subsubcategories ตาม subcategory
   const filteredSubSubcategories = useMemo(() => {
     if (!subcategory) return [];
     return allSubSubcategories.filter(
@@ -77,96 +133,103 @@ const SubSubCategory = () => {
     );
   }, [allSubSubcategories, subcategory]);
 
+  // Visible (search + sort)
   const visibleSubSubcategories = useMemo(() => {
     const list = (filteredSubSubcategories || []).map((s) => ({
       ...s,
       __image: getCategoryOrSubCategoryImage(s),
     }));
+
     let filtered = list.filter((s) =>
-      (s.name || "").toLowerCase().includes((searchTerm || "").toLowerCase())
+      s.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
-    if (sortBy === "alpha")
+
+    if (sortBy === "alpha") {
       filtered.sort((a, b) =>
         a.name.localeCompare(b.name, "th", { sensitivity: "base" })
       );
+    }
+
     return filtered;
   }, [filteredSubSubcategories, searchTerm, sortBy]);
 
-  const [page, setPage] = useState(1);
-  const pageSize = 12;
-
-  const paginatedVisible = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    return visibleSubSubcategories.slice(start, start + pageSize);
-  }, [visibleSubSubcategories, page]);
-
-  const [subsubPreviews, setSubsubPreviews] = useState({});
-
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const toFetch = paginatedVisible.slice(0, 6);
-        await Promise.all(
-          toFetch.map(async (s) => {
-            try {
-              const res = await listProductBySubsubcategory(s._id || s.id);
-              if (!mounted) return;
-              setSubsubPreviews((p) => ({
-                ...p,
-                [s._id || s.id]: (res.data || []).slice(0, 3),
-              }));
-            } catch (e) {
-              // ignore
-            }
-          })
-        );
-      } finally {
-        // noop
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [paginatedVisible]);
-
+  // hero stats
   const subsubCount = filteredSubSubcategories.length;
+  const subsubProductsTotal = filteredSubSubcategories.reduce(
+    (s, cur) => s + (Number(cur.productCount) || 0),
+    0
+  );
 
   return (
     <div className="bg-gradient-to-br from-blue-50 to-white min-h-screen font-sarabun flex flex-col">
+      {/* Hero Section */}
       <section className="py-14">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
             <div className="md:col-span-2 bg-white/80 backdrop-blur-md rounded-xl p-8 shadow-md">
               <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-3">
-                {subcategory
-                  ? `หมวดหมู่ ${
-                      getCategoryName(subcategory) || subcategory.name
-                    }`
+                {subcategoryDisplayName
+                  ? `หมวดหมู่ ${subcategoryDisplayName}`
                   : "สำรวจหมวดหมู่ย่อย"}
               </h1>
               <p className="text-gray-600 text-base md:text-lg mb-6">
-                {subcategory
-                  ? `ดูรายการหมวดหมู่ย่อยระดับ 2 ภายใต้ "${
-                      getCategoryName(subcategory) || subcategory.name
-                    }"`
-                  : "เรียกดูหมวดหมู่ย่อยระดับ 2 ที่มีให้เลือก"}
+                {subcategoryDisplayName
+                  ? `ดูรายการหมวดหมู่ย่อยระดับ 2 ภายใต้ "${subcategoryDisplayName}"`
+                  : `เรียกดูหมวดหมู่ย่อยระดับ 2 ที่มีให้เลือก`}
               </p>
+
+              <div className="flex flex-wrap items-center gap-3 mb-6">
+                <div className="inline-flex items-center gap-3 bg-gray-50 px-4 py-2 rounded-full shadow-sm">
+                  <span className="text-sm font-medium text-gray-700">
+                    รายการย่อยทั้งหมด
+                  </span>
+                  <span className="text-yellow-600 font-semibold">
+                    {subsubCount}
+                  </span>
+                </div>
+              </div>
             </div>
+
             <div className="md:col-span-1">
               <div className="rounded-xl overflow-hidden shadow-lg bg-white">
                 <div className="h-48 md:h-56 w-full bg-gray-100 flex items-center justify-center">
-                  {subcategory ? (
+                  {subcategory && getCategoryOrSubCategoryImage(subcategory) ? (
                     <img
                       src={getCategoryOrSubCategoryImage(subcategory)}
                       alt={getCategoryName(subcategory)}
                       className="w-full h-full object-cover object-center"
+                      loading="lazy"
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = "/img/default-category.png";
+                      }}
                     />
                   ) : (
                     <div className="text-center p-6">
+                      <svg
+                        className="mx-auto w-12 h-12 text-yellow-500"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M3 7h18M3 12h18M3 17h18"
+                        ></path>
+                      </svg>
                       <p className="text-sm text-gray-500 mt-2">รูปตัวอย่าง</p>
                     </div>
                   )}
+                </div>
+                <div className="p-4">
+                  <h4 className="text-sm text-gray-600">คำอธิบาย</h4>
+                  <p className="text-sm text-gray-500 mt-1 truncate">
+                    {subcategory && subcategory.description
+                      ? subcategory.description
+                      : "รวมรายการย่อยระดับ 2 ที่หลากหลาย"}
+                  </p>
                 </div>
               </div>
             </div>
@@ -174,6 +237,7 @@ const SubSubCategory = () => {
         </div>
       </section>
 
+      {/* Breadcrumb */}
       <nav
         aria-label="Breadcrumb"
         className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
@@ -190,18 +254,21 @@ const SubSubCategory = () => {
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
                 >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth="2"
                     d="M3 9.75L12 4l9 5.75V20a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1V9.75z"
-                  />
+                  ></path>
                 </svg>
                 หน้าหลัก
               </Link>
             </li>
+
             <li className="text-gray-300">/</li>
+
             <li>
               <Link
                 to="/shop"
@@ -210,14 +277,26 @@ const SubSubCategory = () => {
                 สินค้า
               </Link>
             </li>
-            {subcategory && (
+
+            {categoryName && (
               <>
                 <li className="text-gray-300">/</li>
                 <li
                   aria-current="page"
                   className="text-gray-900 font-semibold truncate max-w-xs"
                 >
-                  {getCategoryName(subcategory) || subcategory.name}
+                  {categoryName}
+                </li>
+              </>
+            )}
+            {subcategoryDisplayName && (
+              <>
+                <li className="text-gray-300">/</li>
+                <li
+                  aria-current="page"
+                  className="text-gray-900 font-semibold truncate max-w-xs"
+                >
+                  {subcategoryDisplayName}
                 </li>
               </>
             )}
@@ -225,17 +304,35 @@ const SubSubCategory = () => {
         </div>
       </nav>
 
+      {/* Main Content */}
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row gap-8 py-10 px-4 md:px-6 flex-1 w-full">
+        {/* Sidebar */}
         <aside className="w-full md:w-72 mb-8 md:mb-0">
           <div className="sticky top-28">
             <SidebarFilter />
           </div>
         </aside>
 
+        {/* Grid */}
         <main className="flex-1 flex flex-col">
           <div className="w-full max-w-5xl">
+            {/* Toolbar */}
             <div className="flex items-center justify-between mb-8 gap-4 flex-wrap">
+              {/* Search */}
               <div className="flex items-center bg-white border border-gray-200 rounded-xl px-3 py-2 w-full md:w-80 shadow-sm">
+                <svg
+                  className="w-5 h-5 text-gray-400 mr-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"
+                  />
+                </svg>
                 <input
                   aria-label="ค้นหาหมวดหมู่ย่อย"
                   placeholder="ค้นหาหมวดหมู่ย่อย..."
@@ -244,7 +341,12 @@ const SubSubCategory = () => {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
+
+              {/* Sort */}
               <div className="flex items-center gap-2">
+                <label htmlFor="sort" className="sr-only">
+                  เรียงลำดับ
+                </label>
                 <select
                   id="sort"
                   className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-700 shadow-sm"
@@ -257,56 +359,26 @@ const SubSubCategory = () => {
               </div>
             </div>
 
+            {/* Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-              {paginatedVisible.length === 0
+              {visibleSubSubcategories.length === 0
                 ? Array.from({ length: 6 }).map((_, i) => (
                     <LoadingSkeleton key={i} />
                   ))
-                : paginatedVisible.map((subsub) => (
-                    <div key={subsub._id || subsub.id}>
-                      <Card
-                        name={subsub.name}
-                        image={subsub.__image}
-                        onClick={() =>
-                          navigate(
-                            `/shop/productListingPage?subsubcategory=${encodeURIComponent(
-                              subsub.name
-                            )}`
-                          )
-                        }
-                      />
-                      <div className="mt-2 flex items-center gap-2 justify-center">
-                        {(subsubPreviews[subsub._id || subsub.id] || [])
-                          .slice(0, 3)
-                          .map((p) => (
-                            <img
-                              key={p.id}
-                              src={p.image || "/img/no-image.png"}
-                              alt={p.title}
-                              className="w-12 h-12 object-cover rounded"
-                            />
-                          ))}
-                      </div>
-                    </div>
+                : visibleSubSubcategories.map((subsub) => (
+                    <Card
+                      key={subsub._id || subsub.id}
+                      name={subsub.name}
+                      image={subsub.__image}
+                      onClick={() =>
+                        navigate(
+                          `/shop/productListingPage?subsubcategory=${encodeURIComponent(
+                            subsub.name
+                          )}`
+                        )
+                      }
+                    />
                   ))}
-            </div>
-
-            <div className="mt-6 flex items-center justify-center gap-3">
-              <button
-                className="px-3 py-2 bg-white border rounded disabled:opacity-50"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-              >
-                ก่อนหน้า
-              </button>
-              <span className="text-sm text-gray-600">หน้า {page}</span>
-              <button
-                className="px-3 py-2 bg-white border rounded disabled:opacity-50"
-                onClick={() => setPage((p) => p + 1)}
-                disabled={page * pageSize >= visibleSubSubcategories.length}
-              >
-                ถัดไป
-              </button>
             </div>
           </div>
         </main>

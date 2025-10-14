@@ -126,20 +126,6 @@ export const searchFilters = async (arg) => {
   return axios.post(`${API}/search/filters`, arg);
 };
 
-// List products for a subcategory (server returns full product objects)
-export const listProductBySubcategory = async (subcategoryId) => {
-  return axios.get(
-    `${API}/products/subcategory/${encodeURIComponent(subcategoryId)}`
-  );
-};
-
-// List products for a sub-subcategory (lightweight mapping endpoint)
-export const listProductBySubsubcategory = async (subsubcategoryId) => {
-  return axios.get(
-    `${API}/products/subsubcategory/${encodeURIComponent(subsubcategoryId)}`
-  );
-};
-
 export const listProductBy = async (
   tokenOrSort,
   sortOrOrder,
