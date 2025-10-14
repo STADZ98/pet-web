@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState, Fragment } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import useEcomStore from "../store/ecom-store";
+import { listProductBySubsubcategory } from "../api/product";
 import {
   ShoppingCart,
   Star,
@@ -45,8 +46,15 @@ const ProductListingPage = () => {
   useEffect(() => {
     if (categories.length === 0) getCategories?.();
     if (subcategories.length === 0) getSubcategories?.();
+    // keep a light global fetch for default list, but avoid loading everything
     getProduct?.("createdAt", "desc", 50);
   }, [getProduct, getCategories, getSubcategories, categories, subcategories]);
+
+  // Local listing state (avoid polluting global store for large lists)
+  const [localProducts, setLocalProducts] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState(searchProduct || "");
+  const [debounceTimer, setDebounceTimer] = useState(null);
 
   // 🔹 Extract query
   const params = new URLSearchParams(location.search);
@@ -101,23 +109,54 @@ const ProductListingPage = () => {
   };
 
   // 🔹 Filter products
+  // Fetch products when subsubcategory param changes or search applied
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        setLoading(true);
+        // If subsubcategory specified, fetch lightweight list from server
+        if (matchedSubSubcategory) {
+          const res = await listProductBySubsubcategory(
+            matchedSubSubcategory._id || matchedSubSubcategory.id
+          );
+          if (!mounted) return;
+          setLocalProducts(res.data || []);
+        } else if (params.get("product")) {
+          // fallback: use searchFilters via global store or local filtering
+          const filtered = products.filter((p) =>
+            p.title?.toLowerCase().includes(searchProduct.toLowerCase())
+          );
+          if (!mounted) return;
+          setLocalProducts(filtered || []);
+        } else {
+          // default: use current global products (already limited)
+          setLocalProducts(products || []);
+        }
+      } catch (err) {
+        console.debug("list fetch failed", err?.message || err);
+        if (!mounted) return;
+        setLocalProducts([]);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matchedSubSubcategory, searchProduct, products]);
+
+  // local filtered products by searchQuery (debounced handled by input)
   const filteredProducts = useMemo(() => {
-    if (searchProduct) {
-      return products.filter((p) =>
-        p.title?.toLowerCase().includes(searchProduct.toLowerCase())
+    if (searchQuery && searchQuery.trim() !== "") {
+      return (localProducts || []).filter((p) =>
+        (p.title || "").toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
-    // If a specific sub-subcategory is matched, filter by it.
-    // Otherwise (no search and no matched sub-subcategory) return all products.
-    if (matchedSubSubcategory) {
-      return products.filter(
-        (p) =>
-          String(p.subSubcategoryId || p.subsubcategoryId || "") ===
-          String(matchedSubSubcategory._id || matchedSubSubcategory.id)
-      );
-    }
-    return products;
-  }, [products, matchedSubSubcategory, searchProduct]);
+    return localProducts || [];
+  }, [localProducts, searchQuery]);
 
   // 🔹 Sort products
   const sortedProducts = useMemo(() => {
@@ -169,6 +208,19 @@ const ProductListingPage = () => {
             </button>
 
             <div className="relative">
+              <input
+                aria-label="ค้นหาผลิตภัณฑ์"
+                placeholder="ค้นหาผลิตภัณฑ์..."
+                className="hidden md:inline-flex bg-white border border-gray-200 rounded-md px-3 py-2 text-sm text-gray-700 shadow-sm"
+                value={searchQuery}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  // debounce simple
+                  if (debounceTimer) clearTimeout(debounceTimer);
+                  const t = setTimeout(() => setSearchQuery(v), 300);
+                  setDebounceTimer(t);
+                }}
+              />
               <select
                 value={sortOption}
                 onChange={(e) => setSortOption(e.target.value)}
@@ -260,7 +312,9 @@ const ProductListingPage = () => {
           </nav>
 
           {/* Product Grid */}
-          {sortedProducts.length > 0 ? (
+          {loading ? (
+            <div className="text-center py-20">กำลังโหลด...</div>
+          ) : sortedProducts.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {sortedProducts.map((product) => (
                 <article

@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import useEcomStore from "../store/ecom-store";
+import { listProductBySubcategory } from "../api/product";
 import SidebarFilter from "../components/card/SidebarFilter";
 import { getCategoryName, getCategoryImage } from "../utils/categoryUtils";
 
@@ -16,7 +17,7 @@ const LoadingSkeleton = () => (
 );
 
 // ===== Category / Subcategory Card =====
-const Card = ({ name, image, count, onClick }) => (
+const Card = ({ name, image, onClick }) => (
   <button
     type="button"
     onClick={onClick}
@@ -36,8 +37,6 @@ const Card = ({ name, image, count, onClick }) => (
       />
 
       <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-
-     
 
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
@@ -125,6 +124,43 @@ const SubCategory = () => {
 
     return filtered;
   }, [categories, searchTerm, sortBy]);
+
+  // pagination for category card previews
+  const [page, setPage] = useState(1);
+  const pageSize = 12;
+  const [categoryPreviews, setCategoryPreviews] = useState({});
+  const [loadingPreviews, setLoadingPreviews] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchPreviews = async () => {
+      try {
+        setLoadingPreviews(true);
+        // For visible categories fetch only first page previews (parallel requests)
+        const toFetch = visibleCategories.slice(0, 6);
+        await Promise.all(
+          toFetch.map(async (cat) => {
+            try {
+              const res = await listProductBySubcategory(cat._id || cat.id);
+              if (!mounted) return;
+              setCategoryPreviews((prev) => ({
+                ...prev,
+                [cat._id || cat.id]: (res.data || []).slice(0, 4),
+              }));
+            } catch {
+              // ignore per-category failure
+            }
+          })
+        );
+      } finally {
+        if (mounted) setLoadingPreviews(false);
+      }
+    };
+    fetchPreviews();
+    return () => {
+      mounted = false;
+    };
+  }, [visibleCategories]);
 
   const visibleSubcategories = useMemo(() => {
     const list = filteredSubcategories.map((s) => ({
@@ -339,19 +375,32 @@ const SubCategory = () => {
                     <LoadingSkeleton key={i} />
                   ))
                 : visibleCategories.map((cat) => (
-                    <Card
-                      key={cat._id || cat.id}
-                      name={cat.__name}
-                      image={cat.__image}
-                      count={cat.productCount}
-                      onClick={() =>
-                        navigate(
-                          `/shop/subcategory?category=${encodeURIComponent(
-                            cat.__name
-                          )}`
-                        )
-                      }
-                    />
+                    <div key={cat._id || cat.id}>
+                      <Card
+                        name={cat.__name}
+                        image={cat.__image}
+                        onClick={() =>
+                          navigate(
+                            `/shop/subcategory?category=${encodeURIComponent(
+                              cat.__name
+                            )}`
+                          )
+                        }
+                      />
+                      {/* preview images */}
+                      <div className="mt-2 flex items-center gap-2">
+                        {(categoryPreviews[cat._id || cat.id] || [])
+                          .slice(0, 3)
+                          .map((p) => (
+                            <img
+                              key={p.id}
+                              src={p.image || "/img/no-image.png"}
+                              alt={p.title}
+                              className="w-12 h-12 object-cover rounded"
+                            />
+                          ))}
+                      </div>
+                    </div>
                   ))}
             </div>
           </section>
