@@ -163,10 +163,16 @@ const ReturnRequestModal = ({
 
   const apiBase = import.meta.env.VITE_API || "";
 
+  const publicBase = import.meta.env.BASE_URL || "/";
+  const publicNoImage = `${publicBase.replace(/\/$/, "")}/no-image.png`;
+
   // Component for displaying a single detail row
-  const DetailRow = ({ icon: Icon, label, value }) => (
+  const DetailRow = ({ icon, label, value }) => (
     <div className="flex items-start space-x-3 p-3 bg-white rounded-lg border border-gray-100 shadow-sm">
-      <Icon className="w-5 h-5 mt-0.5 text-blue-500 flex-shrink-0" />
+      {icon &&
+        React.createElement(icon, {
+          className: "w-5 h-5 mt-0.5 text-blue-500 flex-shrink-0",
+        })}
       <div className="flex-grow">
         <div className="text-sm font-medium text-gray-500">{label}</div>
         <div className="text-base font-semibold text-gray-800 break-words">
@@ -178,8 +184,7 @@ const ReturnRequestModal = ({
 
   // Determine product thumbnail source with fallbacks
   const getProductImageSrc = (p) => {
-    if (!p) return "/no-image.png";
-    // variant images (common shapes)
+    if (!p) return publicNoImage;
     const variant = p.variant || p.product?.variant;
     const prod = p.product || {};
     const candidates = [
@@ -192,11 +197,29 @@ const ReturnRequestModal = ({
       prod?.thumbnail,
       prod?.thumb,
     ];
-    for (const c of candidates) {
-      if (c) return c;
+
+    for (let c of candidates) {
+      if (!c) continue;
+      // if already absolute URL, return as-is
+      if (typeof c === "string") {
+        const s = c.trim();
+        if (s.startsWith("http://") || s.startsWith("https://")) return s;
+        if (s.startsWith("/")) return s; // root-relative
+        // relative path or bare filename: try prefixing apiBase if set, else BASE_URL
+        if (apiBase) return `${apiBase.replace(/\/$/, "")}/${s}`;
+        return `${publicBase.replace(/\/$/, "")}/${s}`;
+      }
+      // if it's an object with url prop
+      if (c && typeof c === "object" && c.url) {
+        const s = c.url;
+        if (s.startsWith("http://") || s.startsWith("https://")) return s;
+        if (s.startsWith("/")) return s;
+        if (apiBase) return `${apiBase.replace(/\/$/, "")}/${s}`;
+        return `${publicBase.replace(/\/$/, "")}/${s}`;
+      }
     }
-    // final fallback to public no-image
-    return "/no-image.png";
+
+    return publicNoImage;
   };
 
   return (
@@ -367,7 +390,7 @@ const ReturnRequestModal = ({
                                   className="w-full h-full object-cover"
                                   onError={(e) => {
                                     e.target.onerror = null;
-                                    e.target.src = "/no-image.png";
+                                    e.target.src = publicNoImage;
                                   }}
                                 />
                               </div>
@@ -420,6 +443,10 @@ const ReturnRequestModal = ({
                               src={src}
                               alt={img.filename || `Image ${img.id}`}
                               className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.onerror = null;
+                                e.currentTarget.src = publicNoImage;
+                              }}
                             />
                           </button>
                         );
