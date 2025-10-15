@@ -6,6 +6,9 @@ const Home = lazy(() => import("../pages/Home"));
 const Shop = lazy(() => import("../pages/Shop"));
 const Cart = lazy(() => import("../pages/Cart"));
 const History = lazy(() => import("../pages/user/History"));
+const ReturnRequestDetails = lazy(() =>
+  import("../pages/user/ReturnRequestDetails")
+);
 const Success = lazy(() => import("../pages/user/Success"));
 const Checkout = lazy(() => import("../pages/Checkout"));
 const Login = lazy(() => import("../pages/auth/Login"));
@@ -129,6 +132,7 @@ const router = createBrowserRouter([
       { index: true, element: <HomeUser /> },
       { path: "payment", element: <Payment /> },
       { path: "history", element: <History /> },
+      { path: "return-request/:id", element: <ReturnRequestDetails /> },
       { path: "success", element: <Success /> },
       { path: "profile", element: <Profile /> },
     ],

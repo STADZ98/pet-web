@@ -1115,6 +1115,22 @@ const HistoryCard = () => {
                         คืนสินค้า
                       </button>
                     )}
+
+                  {/* If there are any return requests for this order, show link to details */}
+                  {Array.isArray(order.returnRequests) &&
+                    order.returnRequests.length > 0 && (
+                      <button
+                        onClick={() => {
+                          const rr = order.returnRequests[0];
+                          const rrId = rr.id || rr.returnRequestId || rr._id;
+                          if (rrId)
+                            window.location.href = `/user/return-request/${rrId}`;
+                        }}
+                        className="ml-2 px-4 py-2 bg-blue-500 text-white rounded-full font-semibold hover:bg-blue-600 transition-colors shadow-sm"
+                      >
+                        ดูรายละเอียดการคืน
+                      </button>
+                    )}
                 </div>
               </div>
             </div>

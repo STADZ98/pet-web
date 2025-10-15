@@ -72,6 +72,11 @@ export const cancelOrder = async (token, orderId) => {
     }
   );
 };
+export const getReturnRequest = async (token, id) => {
+  return axios.get(`${API}/user/return-request/${id}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
 export const updateUserInfo = (token, userId, data) => {
   return axios.patch(`${API}/admin/user/${userId}`, data, {
     headers: { Authorization: `Bearer ${token}` },
