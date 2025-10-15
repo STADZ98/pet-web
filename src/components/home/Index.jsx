@@ -104,7 +104,7 @@ const ARTICLES = [
 
 // -----------------------------------------------------------------------------
 // Data Hook (fetch + global store hydration)
-// -----------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
 const useProductData = () => {
   const [bestSeller, setBestSeller] = useState([]);
   const [loadingBestSeller, setLoadingBestSeller] = useState(true);
