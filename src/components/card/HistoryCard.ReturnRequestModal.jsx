@@ -176,6 +176,29 @@ const ReturnRequestModal = ({
     </div>
   );
 
+  // Determine product thumbnail source with fallbacks
+  const getProductImageSrc = (p) => {
+    if (!p) return "/no-image.png";
+    // variant images (common shapes)
+    const variant = p.variant || p.product?.variant;
+    const prod = p.product || {};
+    const candidates = [
+      variant?.images?.[0]?.url,
+      variant?.images?.[0],
+      variant?.image,
+      prod?.images?.[0]?.url,
+      prod?.images?.[0],
+      prod?.image,
+      prod?.thumbnail,
+      prod?.thumb,
+    ];
+    for (const c of candidates) {
+      if (c) return c;
+    }
+    // final fallback to public no-image
+    return "/no-image.png";
+  };
+
   return (
     <dialog
       open={isOpen}
@@ -325,28 +348,48 @@ const ReturnRequestModal = ({
                   </h4>
                   <div className="bg-white border rounded-lg shadow-sm divide-y">
                     {data.products && data.products.length > 0 ? (
-                      data.products.map((p, index) => (
-                        <div
-                          key={p.id || index}
-                          className="p-4 flex justify-between items-center hover:bg-gray-50 transition-colors"
-                        >
-                          <div className="flex-grow">
-                            <div className="font-medium text-gray-900">
-                              {p.product?.title || p.productId}
+                      data.products.map((p, index) => {
+                        const imgSrc = getProductImageSrc(p);
+                        const title =
+                          p.product?.title ||
+                          p.productId ||
+                          "ไม่ระบุชื่อสินค้า";
+                        return (
+                          <div
+                            key={p.id || index}
+                            className="p-4 flex justify-between items-center hover:bg-gray-50 transition-colors"
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className="w-16 h-16 bg-gray-100 rounded-md overflow-hidden flex-shrink-0">
+                                <img
+                                  src={imgSrc}
+                                  alt={title}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.target.onerror = null;
+                                    e.target.src = "/no-image.png";
+                                  }}
+                                />
+                              </div>
+                              <div>
+                                <div className="font-medium text-gray-900">
+                                  {title}
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                  <span className="font-semibold">ID:</span>{" "}
+                                  {p.productId}
+                                  {p.quantity && (
+                                    <span className="ml-4">
+                                      จำนวน: {p.quantity}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                            <div className="text-sm text-gray-500">
-                              <span className="font-semibold">ID:</span>{" "}
-                              {p.productId}
-                              {p.quantity && (
-                                <span className="ml-4">
-                                  จำนวน: {p.quantity}
-                                </span>
-                              )}
-                            </div>
+                            {/* Optional: Add price or other product details here */}
                           </div>
-                          {/* Optional: Add price or other product details here */}
-                        </div>
-                      ))
+                        );
+                      })
                     ) : (
                       <div className="p-4 text-sm text-gray-500">
                         ไม่มีรายการสินค้าในคำขอนี้
