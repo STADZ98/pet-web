@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { getOrders, cancelOrder as apiCancelOrder } from "../../api/user";
 import useEcomStore from "../../store/ecom-store";
 import { numberFormat } from "../../utils/number";
@@ -96,6 +97,7 @@ const HistoryCard = () => {
   };
   const token =
     useEcomStore((state) => state.token) || localStorage.getItem("token");
+  const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -1123,8 +1125,7 @@ const HistoryCard = () => {
                         onClick={() => {
                           const rr = order.returnRequests[0];
                           const rrId = rr.id || rr.returnRequestId || rr._id;
-                          if (rrId)
-                            window.location.href = `/user/return-request/${rrId}`;
+                          if (rrId) navigate(`/user/return-request/${rrId}`);
                         }}
                         className="ml-2 px-4 py-2 bg-blue-500 text-white rounded-full font-semibold hover:bg-blue-600 transition-colors shadow-sm"
                       >

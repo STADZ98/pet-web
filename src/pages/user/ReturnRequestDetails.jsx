@@ -3,6 +3,33 @@ import { useParams, useNavigate } from "react-router-dom";
 import { getReturnRequest } from "../../api/user";
 import useEcomStore from "../../store/ecom-store";
 
+const statusLabel = (s) => {
+  if (!s) return "ไม่ระบุ";
+  switch (s) {
+    case "PENDING":
+      return "รอดำเนินการ";
+    case "APPROVED":
+      return "อนุมัติแล้ว";
+    case "REJECTED":
+      return "ปฏิเสธ";
+    default:
+      return s;
+  }
+};
+
+const statusColor = (s) => {
+  switch (s) {
+    case "PENDING":
+      return "bg-yellow-100 text-yellow-800";
+    case "APPROVED":
+      return "bg-green-100 text-green-800";
+    case "REJECTED":
+      return "bg-rose-100 text-rose-800";
+    default:
+      return "bg-gray-100 text-gray-800";
+  }
+};
+
 const ReturnRequestDetails = () => {
   const { id } = useParams();
   const token = useEcomStore((s) => s.token) || localStorage.getItem("token");
@@ -40,7 +67,16 @@ const ReturnRequestDetails = () => {
       <div className="bg-white border rounded-lg p-4 mb-4">
         <div className="flex justify-between items-center mb-2">
           <div className="font-semibold">สถานะ</div>
-          <div className="text-sm text-gray-700">{data.status}</div>
+          <div
+            className={`text-sm font-semibold px-3 py-1 rounded-full ${statusColor(
+              data.status
+            )}`}
+          >
+            {statusLabel(data.status)}
+          </div>
+        </div>
+        <div className="text-xs text-gray-500 mb-2">
+          สร้างเมื่อ: {new Date(data.createdAt).toLocaleString()}
         </div>
         <div className="mb-2">
           <div className="font-semibold">เหตุผล</div>
@@ -54,6 +90,17 @@ const ReturnRequestDetails = () => {
             คำสั่งซื้อ #{data.order?.id || data.orderId}
           </div>
         </div>
+        {data.handledAt && (
+          <div className="mt-2 text-sm text-gray-600">
+            จัดการแล้วเมื่อ: {new Date(data.handledAt).toLocaleString()}
+          </div>
+        )}
+        {data.adminNote && (
+          <div className="mt-2">
+            <div className="font-semibold">หมายเหตุจากแอดมิน</div>
+            <div className="text-sm text-gray-700">{data.adminNote}</div>
+          </div>
+        )}
       </div>
 
       <div className="bg-white border rounded-lg p-4 mb-4">
@@ -90,6 +137,14 @@ const ReturnRequestDetails = () => {
             <div className="text-sm text-gray-500">ไม่มีรูป</div>
           )}
         </div>
+      </div>
+      <div className="flex items-center gap-3 mt-6">
+        <button
+          onClick={() => navigate(-1)}
+          className="px-4 py-2 bg-slate-100 text-slate-700 rounded-full hover:bg-slate-200"
+        >
+          ย้อนกลับ
+        </button>
       </div>
     </div>
   );
