@@ -167,11 +167,9 @@ const ReturnRequestModal = ({
   const publicNoImage = `${publicBase.replace(/\/$/, "")}/no-image.png`;
 
   // Component for displaying a single detail row
-  const DetailRow = ({ icon, label, value }) => (
+  const DetailRow = ({ icon: Icon, label, value }) => (
     <div className="flex items-start space-x-3 p-3 bg-white rounded-lg border border-gray-100 shadow-sm">
-      {icon && React.createElement(icon, {
-        className: "w-5 h-5 mt-0.5 text-blue-500 flex-shrink-0",
-      })}
+      <Icon className="w-5 h-5 mt-0.5 text-blue-500 flex-shrink-0" />
       <div className="flex-grow">
         <div className="text-sm font-medium text-gray-500">{label}</div>
         <div className="text-base font-semibold text-gray-800 break-words">
