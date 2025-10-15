@@ -169,10 +169,9 @@ const ReturnRequestModal = ({
   // Component for displaying a single detail row
   const DetailRow = ({ icon, label, value }) => (
     <div className="flex items-start space-x-3 p-3 bg-white rounded-lg border border-gray-100 shadow-sm">
-      {icon &&
-        React.createElement(icon, {
-          className: "w-5 h-5 mt-0.5 text-blue-500 flex-shrink-0",
-        })}
+      {icon && React.createElement(icon, {
+        className: "w-5 h-5 mt-0.5 text-blue-500 flex-shrink-0",
+      })}
       <div className="flex-grow">
         <div className="text-sm font-medium text-gray-500">{label}</div>
         <div className="text-base font-semibold text-gray-800 break-words">
@@ -390,7 +389,7 @@ const ReturnRequestModal = ({
                                   className="w-full h-full object-cover"
                                   onError={(e) => {
                                     e.target.onerror = null;
-                                    e.target.src = publicNoImage;
+                                    e.target.src = "/no-image.png";
                                   }}
                                 />
                               </div>
@@ -443,10 +442,6 @@ const ReturnRequestModal = ({
                               src={src}
                               alt={img.filename || `Image ${img.id}`}
                               className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.currentTarget.onerror = null;
-                                e.currentTarget.src = publicNoImage;
-                              }}
                             />
                           </button>
                         );
