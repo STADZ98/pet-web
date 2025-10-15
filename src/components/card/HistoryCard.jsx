@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { getOrders, cancelOrder as apiCancelOrder } from "../../api/user";
+import {
+  getOrders,
+  cancelOrder as apiCancelOrder,
+  getReturnRequest,
+} from "../../api/user";
 import useEcomStore from "../../store/ecom-store";
 import { numberFormat } from "../../utils/number";
 import {
@@ -25,6 +28,7 @@ import OrderDetailsModal from "./HistoryCardOrderDetailsModal";
 import ReviewModal from "./HistoryCard.ReviewModal";
 import ReturnProductModal from "./HistoryCard.ReturnProductModal";
 import CancelOrderModal from "./HistoryCard.CancelOrderModal";
+import ReturnRequestModal from "./HistoryCard.ReturnRequestModal";
 
 // Shared constants to make labels and steps easier to maintain
 // ----------------------------------------------------------------------
@@ -97,7 +101,7 @@ const HistoryCard = () => {
   };
   const token =
     useEcomStore((state) => state.token) || localStorage.getItem("token");
-  const navigate = useNavigate();
+
   const [orders, setOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -709,6 +713,58 @@ const HistoryCard = () => {
     return filtered;
   }, [orders, activeStatus, sortOrder]);
 
+  // Return request modal state (modal that shows a submitted return request's details)
+  const [isReturnRequestModalOpen, setIsReturnRequestModalOpen] =
+    useState(false);
+  const [returnRequestDetail, setReturnRequestDetail] = useState(null);
+  const [loadingReturnRequestDetail, setLoadingReturnRequestDetail] =
+    useState(false);
+
+  const openReturnRequestModal = async (rrId) => {
+    // close other dialogs to avoid nesting and focus issues
+    setIsModalOpen(false);
+    setIsReviewOpen(false);
+    setIsReturnOpen(false);
+    setIsCancelModalOpen(false);
+
+    setIsReturnRequestModalOpen(true);
+    setLoadingReturnRequestDetail(true);
+    // clear previous error
+    setReturnRequestDetail(null);
+    setLastReturnRequestId(rrId);
+    try {
+      const tk =
+        window.localStorage.getItem("ptre_token") ||
+        token ||
+        window.localStorage.getItem("token");
+      const res = await getReturnRequest(tk, rrId);
+      if (res && res.data && res.data.returnRequest) {
+        setReturnRequestDetail(res.data.returnRequest);
+        // clear any previous fetch error
+        setReturnRequestFetchError(null);
+      }
+    } catch (err) {
+      console.error("failed to fetch return request", err);
+      setReturnRequestFetchError(
+        err?.response?.data?.message ||
+          err?.message ||
+          "ไม่สามารถดึงข้อมูลคำขอได้"
+      );
+    } finally {
+      setLoadingReturnRequestDetail(false);
+    }
+  };
+
+  const closeReturnRequestModal = () => {
+    setIsReturnRequestModalOpen(false);
+    setReturnRequestDetail(null);
+    setReturnRequestFetchError(null);
+  };
+
+  // fetch error state for returnRequest
+  const [returnRequestFetchError, setReturnRequestFetchError] = useState(null);
+  const [lastReturnRequestId, setLastReturnRequestId] = useState(null);
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 bg-slate-50 min-h-screen">
       {/* Reminder banner: show when there are review reminders */}
@@ -1125,7 +1181,7 @@ const HistoryCard = () => {
                         onClick={() => {
                           const rr = order.returnRequests[0];
                           const rrId = rr.id || rr.returnRequestId || rr._id;
-                          if (rrId) navigate(`/user/return-request/${rrId}`);
+                          if (rrId) openReturnRequestModal(rrId);
                         }}
                         className="ml-2 px-4 py-2 bg-blue-500 text-white rounded-full font-semibold hover:bg-blue-600 transition-colors shadow-sm"
                       >
@@ -1201,6 +1257,29 @@ const HistoryCard = () => {
           handleCancelSubmit={handleCancelSubmit}
           cancelOrderDetail={cancelOrderDetail}
         />
+      )}
+
+      {/* Return Request Modal (in-page popup) */}
+      {isReturnRequestModalOpen && (
+        <ReturnRequestModal
+          isOpen={isReturnRequestModalOpen && !loadingReturnRequestDetail}
+          closeModal={closeReturnRequestModal}
+          data={returnRequestDetail}
+          loading={loadingReturnRequestDetail}
+          error={returnRequestFetchError}
+          onRetry={() => {
+            if (returnRequestFetchError) {
+              if (lastReturnRequestId)
+                openReturnRequestModal(lastReturnRequestId);
+              else setReturnRequestFetchError(null);
+            }
+          }}
+        />
+      )}
+      {isReturnRequestModalOpen && loadingReturnRequestDetail && (
+        <div className="fixed inset-0 z-[1200] flex items-center justify-center">
+          <div className="bg-white p-4 rounded shadow">กำลังโหลด...</div>
+        </div>
       )}
     </div>
   );
