@@ -163,9 +163,6 @@ const ReturnRequestModal = ({
 
   const apiBase = import.meta.env.VITE_API || "";
 
-  const publicBase = import.meta.env.BASE_URL || "/";
-  const publicNoImage = `${publicBase.replace(/\/$/, "")}/no-image.png`;
-
   // Component for displaying a single detail row
   const DetailRow = ({ icon: Icon, label, value }) => (
     <div className="flex items-start space-x-3 p-3 bg-white rounded-lg border border-gray-100 shadow-sm">
@@ -178,46 +175,6 @@ const ReturnRequestModal = ({
       </div>
     </div>
   );
-
-  // Determine product thumbnail source with fallbacks
-  const getProductImageSrc = (p) => {
-    if (!p) return publicNoImage;
-    const variant = p.variant || p.product?.variant;
-    const prod = p.product || {};
-    const candidates = [
-      variant?.images?.[0]?.url,
-      variant?.images?.[0],
-      variant?.image,
-      prod?.images?.[0]?.url,
-      prod?.images?.[0],
-      prod?.image,
-      prod?.thumbnail,
-      prod?.thumb,
-    ];
-
-    for (let c of candidates) {
-      if (!c) continue;
-      // if already absolute URL, return as-is
-      if (typeof c === "string") {
-        const s = c.trim();
-        if (s.startsWith("http://") || s.startsWith("https://")) return s;
-        if (s.startsWith("/")) return s; // root-relative
-        // relative path or bare filename: try prefixing apiBase if set, else BASE_URL
-        if (apiBase) return `${apiBase.replace(/\/$/, "")}/${s}`;
-        return `${publicBase.replace(/\/$/, "")}/${s}`;
-      }
-      // if it's an object with url prop
-      if (c && typeof c === "object" && c.url) {
-        const s = c.url;
-        if (s.startsWith("http://") || s.startsWith("https://")) return s;
-        if (s.startsWith("/")) return s;
-        if (apiBase) return `${apiBase.replace(/\/$/, "")}/${s}`;
-        return `${publicBase.replace(/\/$/, "")}/${s}`;
-      }
-    }
-
-    return publicNoImage;
-  };
 
   return (
     <dialog
@@ -368,48 +325,28 @@ const ReturnRequestModal = ({
                   </h4>
                   <div className="bg-white border rounded-lg shadow-sm divide-y">
                     {data.products && data.products.length > 0 ? (
-                      data.products.map((p, index) => {
-                        const imgSrc = getProductImageSrc(p);
-                        const title =
-                          p.product?.title ||
-                          p.productId ||
-                          "ไม่ระบุชื่อสินค้า";
-                        return (
-                          <div
-                            key={p.id || index}
-                            className="p-4 flex justify-between items-center hover:bg-gray-50 transition-colors"
-                          >
-                            <div className="flex items-center gap-4">
-                              <div className="w-16 h-16 bg-gray-100 rounded-md overflow-hidden flex-shrink-0">
-                                <img
-                                  src={imgSrc}
-                                  alt={title}
-                                  className="w-full h-full object-cover"
-                                  onError={(e) => {
-                                    e.target.onerror = null;
-                                    e.target.src = "/no-image.png";
-                                  }}
-                                />
-                              </div>
-                              <div>
-                                <div className="font-medium text-gray-900">
-                                  {title}
-                                </div>
-                                <div className="text-sm text-gray-500">
-                                  <span className="font-semibold">ID:</span>{" "}
-                                  {p.productId}
-                                  {p.quantity && (
-                                    <span className="ml-4">
-                                      จำนวน: {p.quantity}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
+                      data.products.map((p, index) => (
+                        <div
+                          key={p.id || index}
+                          className="p-4 flex justify-between items-center hover:bg-gray-50 transition-colors"
+                        >
+                          <div className="flex-grow">
+                            <div className="font-medium text-gray-900">
+                              {p.product?.title || p.productId}
                             </div>
-                            {/* Optional: Add price or other product details here */}
+                            <div className="text-sm text-gray-500">
+                              <span className="font-semibold">ID:</span>{" "}
+                              {p.productId}
+                              {p.quantity && (
+                                <span className="ml-4">
+                                  จำนวน: {p.quantity}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                        );
-                      })
+                          {/* Optional: Add price or other product details here */}
+                        </div>
+                      ))
                     ) : (
                       <div className="p-4 text-sm text-gray-500">
                         ไม่มีรายการสินค้าในคำขอนี้
