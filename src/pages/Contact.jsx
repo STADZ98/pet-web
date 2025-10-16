@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 
 // Google Maps URL (embed + open link)
@@ -85,24 +85,67 @@ const MapBlock = () => {
   );
 };
 
+const API_URL = "http://localhost:5005/api/messages";
+
 const Contact = () => {
   const [form, setForm] = useState({ name: "", email: "", message: "" });
   const [status, setStatus] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [reply, setReply] = useState({});
+  // mock admin: เปลี่ยนเป็น true ถ้าเป็นแอดมิน
+  const isAdmin = window.localStorage.getItem("isAdmin") === "true";
+
+  // ดึง Q&A
+  useEffect(() => {
+    fetch(API_URL)
+      .then((res) => res.json())
+      .then(setMessages)
+      .catch(() => setMessages([]));
+  }, [status]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((s) => ({ ...s, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // No backend in this repo; show fake success and clear form
-    setStatus({
-      type: "success",
-      message: "ส่งข้อความเรียบร้อย ทีมงานจะติดต่อกลับเร็วๆ นี้",
-    });
-    setForm({ name: "", email: "", message: "" });
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      if (!res.ok) throw new Error("ส่งข้อความไม่สำเร็จ");
+      setStatus({
+        type: "success",
+        message: "ส่งข้อความเรียบร้อย ทีมงานจะติดต่อกลับเร็วๆ นี้",
+      });
+      setForm({ name: "", email: "", message: "" });
+    } catch {
+      setStatus({ type: "error", message: "เกิดข้อผิดพลาด กรุณาลองใหม่" });
+    }
     setTimeout(() => setStatus(null), 6000);
+  };
+
+  // ฟอร์มตอบกลับ (admin)
+  const handleReplyChange = (id, value) => {
+    setReply((r) => ({ ...r, [id]: value }));
+  };
+  const handleReplySubmit = async (id) => {
+    try {
+      const res = await fetch(`${API_URL}/${id}/reply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reply: reply[id] }),
+      });
+      if (!res.ok) throw new Error("ตอบกลับไม่สำเร็จ");
+      setStatus({ type: "success", message: "ตอบกลับสำเร็จ" });
+      setReply((r) => ({ ...r, [id]: "" }));
+    } catch {
+      setStatus({ type: "error", message: "เกิดข้อผิดพลาด" });
+    }
+    setTimeout(() => setStatus(null), 4000);
   };
 
   return (
@@ -139,12 +182,11 @@ const Contact = () => {
             </div>
           </div>
 
-          {/* Contact form */}
+          {/* Contact form + Q&A */}
           <div className="lg:col-span-2 bg-white p-8 rounded-2xl shadow-sm">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">
               ส่งข้อความถึงเรา
             </h3>
-
             {status && (
               <div
                 className={`mb-4 p-3 rounded-md ${
@@ -156,7 +198,6 @@ const Contact = () => {
                 {status.message}
               </div>
             )}
-
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">
@@ -170,7 +211,6 @@ const Contact = () => {
                   required
                 />
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700">
                   อีเมล
@@ -184,7 +224,6 @@ const Contact = () => {
                   required
                 />
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700">
                   ข้อความ
@@ -198,7 +237,6 @@ const Contact = () => {
                   required
                 />
               </div>
-
               <div className="flex items-center gap-3">
                 <button
                   type="submit"
@@ -212,11 +250,69 @@ const Contact = () => {
               </div>
             </form>
 
+            {/* Q&A Section */}
+            <div className="mt-10">
+              <h4 className="text-md font-bold text-gray-800 mb-4">
+                Q&A ข้อความจากผู้ใช้
+              </h4>
+              <div className="space-y-6">
+                {messages.length === 0 && (
+                  <div className="text-gray-500">ยังไม่มีข้อความ</div>
+                )}
+                {messages.map((msg) => (
+                  <div
+                    key={msg._id}
+                    className="border rounded-lg p-4 bg-gray-50"
+                  >
+                    <div className="font-semibold text-gray-700">
+                      {msg.name}{" "}
+                      <span className="text-xs text-gray-400">
+                        ({new Date(msg.createdAt).toLocaleString()})
+                      </span>
+                    </div>
+                    <div className="text-gray-800 mb-2">{msg.message}</div>
+                    {msg.reply ? (
+                      <div className="bg-green-50 border-l-4 border-green-400 p-3 mt-2">
+                        <div className="font-semibold text-green-700">
+                          ทีมงานตอบกลับ:
+                        </div>
+                        <div className="text-green-800">{msg.reply}</div>
+                        <div className="text-xs text-gray-400">
+                          {msg.repliedAt
+                            ? new Date(msg.repliedAt).toLocaleString()
+                            : ""}
+                        </div>
+                      </div>
+                    ) : (
+                      isAdmin && (
+                        <div className="mt-2">
+                          <textarea
+                            value={reply[msg._id] || ""}
+                            onChange={(e) =>
+                              handleReplyChange(msg._id, e.target.value)
+                            }
+                            rows={2}
+                            className="block w-full border rounded p-2 mb-2"
+                            placeholder="ตอบกลับ..."
+                          />
+                          <button
+                            onClick={() => handleReplySubmit(msg._id)}
+                            className="bg-green-500 text-white px-3 py-1 rounded"
+                          >
+                            ตอบกลับ
+                          </button>
+                        </div>
+                      )
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <div className="mt-8">
               <h4 className="text-sm font-semibold text-gray-700 mb-2">
                 ที่ตั้งร้าน
               </h4>
-
               {/* Map and address block */}
               <MapBlock />
             </div>
