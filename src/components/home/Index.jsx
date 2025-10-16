@@ -27,6 +27,8 @@ import CartCard from "../card/CartCard";
 
 import Constants1 from "./images/Constants1.jpg";
 import Constants3 from "./images/Constants3.jpg";
+import Constants2 from "./images/Hero.webp";
+
 const CAROUSEL_IMAGES = [
   {
     url: Constants1,
@@ -34,7 +36,7 @@ const CAROUSEL_IMAGES = [
     desc: "พบกับสินค้าสัตว์เลี้ยงคุณภาพดี ราคาพิเศษทุกวัน",
   },
   {
-    url: "https://petchef.gr/cdn/shop/files/Hero_Horizontal_2025_2_1500x.webp?v=1737390779",
+    url: Constants2,
     title: "โปรโมชั่นสุดคุ้ม",
     desc: "ลดราคาสินค้าสำหรับสัตว์เลี้ยงสูงสุด 50%",
   },
