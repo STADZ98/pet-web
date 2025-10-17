@@ -453,13 +453,7 @@ export default function AdminReviews() {
             </>
           )}
 
-          <button
-            onClick={exportCSV}
-            className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-sm hover:bg-blue-200 transition"
-          >
-            <Download className="w-4 h-4 inline mr-1" />
-            ส่งออก CSV
-          </button>
+         
           <button
             onClick={selectPage}
             className="px-3 py-1 bg-white border rounded-lg text-sm hover:bg-gray-50"
